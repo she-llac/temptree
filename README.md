@@ -116,6 +116,10 @@ If creation fails partway through, the incomplete worktree is automatically clea
 - Dotfiles (e.g., `.env`) are copied along with everything else
 - The `.git` directory is not copied (it's managed by Git's worktree mechanism)
 
+## See also
+
+- [try](https://github.com/tobi/try) — fuzzy-searchable experiment directories with auto-dating
+
 ## License
 
 MIT
