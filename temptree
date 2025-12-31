@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+forest_dir="${TEMPTREE_FOREST_DIR:-$HOME/forest}"
+
+usage() {
+  cat <<'USAGE'
+Usage: temptree [ref] [worktree_dir]
+
+Creates a temporary git worktree and COW-copies the entire working tree into it.
+If ref is omitted, HEAD is used.
+If worktree_dir is omitted, a directory is created under TEMPTREE_FOREST_DIR (default ~/forest).
+To specify only a directory, use: temptree -d <worktree_dir> [ref]
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+die() {
+  echo "$1" >&2
+  exit 1
+}
+
+if [[ -n "${TEMPTREE_FOREST_DIR:-}" && "$forest_dir" != /* ]]; then
+  die "error: TEMPTREE_FOREST_DIR must be an absolute path"
+fi
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "error: not inside a git repository"
+repo_name="$(basename "$repo_root")"
+
+worktree_dir=""
+ref="HEAD"
+if [[ "${1:-}" == "-d" || "${1:-}" == "--dir" ]]; then
+  worktree_dir="${2:-}"
+  [[ -n "$worktree_dir" ]] || die "error: --dir requires a path"
+  ref="${3:-HEAD}"
+  [[ -z "${4:-}" ]] || die "error: too many arguments"
+else
+  case "$#" in
+    0) ;;
+    1) ref="$1" ;;
+    2)
+      ref="$1"
+      worktree_dir="$2"
+      ;;
+    *) die "error: too many arguments" ;;
+  esac
+fi
+completed=false
+
+cleanup() {
+  if [[ "$completed" == "false" && -n "${worktree_dir}" ]]; then
+    git -C "$repo_root" worktree remove --force "$worktree_dir" >/dev/null 2>&1 || rm -rf "$worktree_dir"
+  fi
+}
+
+trap cleanup EXIT INT TERM
+
+if [[ -z "${worktree_dir}" ]]; then
+  mkdir -p "$forest_dir"
+  while :; do
+    rand="$(printf '%04d' $((RANDOM % 10000)))"
+    worktree_dir="$forest_dir/${repo_name}-${rand}"
+    [[ -e "$worktree_dir" ]] || break
+  done
+else
+  if [[ -e "$worktree_dir" ]]; then
+    if [[ -d "$worktree_dir" && -z "$(ls -A "$worktree_dir")" ]]; then
+      :
+    else
+      die "error: worktree_dir exists and is not empty"
+    fi
+  fi
+fi
+
+git -C "$repo_root" worktree add --detach "$worktree_dir" "$ref" >/dev/null 2>&1
+
+(
+  shopt -s dotglob nullglob
+  GLOBIGNORE=".git"
+  cd "$repo_root"
+  files=(*)
+  if [[ "${#files[@]}" -eq 0 ]]; then
+    exit 0
+  fi
+  if cp -cR -- "${files[@]}" "$worktree_dir"/ 2>/dev/null; then
+    :
+  elif cp --reflink=auto -a -- "${files[@]}" "$worktree_dir"/ 2>/dev/null; then
+    :
+  else
+    cp -a -- "${files[@]}" "$worktree_dir"/
+  fi
+)
+
+completed=true
+printf '%s\n' "$worktree_dir"

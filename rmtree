@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+forest_dir="${TEMPTREE_FOREST_DIR:-$HOME/forest}"
+
+usage() {
+  cat <<'USAGE'
+Usage: rmtree [worktree_dir]
+
+Removes a git worktree under TEMPTREE_FOREST_DIR (default ~/forest) and prints the main repo root.
+If worktree_dir is omitted, the current directory is used.
+Use -f/--force to allow removing worktrees outside TEMPTREE_FOREST_DIR.
+Set TEMPTREE_PRUNE_FOREST=0 to keep TEMPTREE_FOREST_DIR even if it becomes empty.
+USAGE
+}
+
+die() {
+  echo "$1" >&2
+  exit 1
+}
+
+if [[ -n "${TEMPTREE_FOREST_DIR:-}" && "$forest_dir" != /* ]]; then
+  die "error: TEMPTREE_FOREST_DIR must be an absolute path"
+fi
+
+force="false"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -f|--force)
+      force="true"
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      die "error: unknown option: $1"
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+[[ -z "${2:-}" ]] || die "error: too many arguments"
+
+target="${1:-$(pwd)}"
+if [[ ! -d "$target" ]]; then
+  die "error: not a directory: $target"
+fi
+
+target="$(cd "$target" && pwd)"
+
+wt_root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" || die "error: not in a git worktree"
+
+case "$wt_root" in
+  "$forest_dir"/*) ;;
+  *)
+    if [[ "$force" != "true" ]]; then
+      die "error: not under $forest_dir: $wt_root"
+    fi
+    ;;
+ esac
+
+common_dir="$(git -C "$wt_root" rev-parse --git-common-dir)"
+if [[ "$common_dir" != /* ]]; then
+  common_dir="$wt_root/$common_dir"
+fi
+
+main_root="$(cd "$common_dir/.." && pwd)"
+
+git -C "$wt_root" worktree remove --force "$wt_root" >/dev/null 2>&1 || rm -rf "$wt_root"
+
+if [[ "${TEMPTREE_PRUNE_FOREST:-1}" != "0" ]]; then
+  rmdir "$forest_dir" >/dev/null 2>&1 || true
+fi
+
+printf '%s\n' "$main_root"
