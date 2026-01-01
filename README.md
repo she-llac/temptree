@@ -8,8 +8,9 @@ temptree              # create a disposable worktree with your uncommitted chang
 rmtree                # clean up and return to main repo
 ```
 
-Creates a detached worktree and copy-on-write copies your working tree into it —
-uncommitted changes included. Your main checkout stays untouched.
+Creates a detached worktree and copies your working tree into it (using
+copy-on-write when available) — uncommitted changes included. Your main checkout
+stays untouched.
 
 ## Usage
 
@@ -84,9 +85,9 @@ cat fish_helpers.fish >> ~/.config/fish/config.fish
 
 | Action | Without helpers | With helpers |
 |--------|-----------------|--------------|
-| `temptree` | Prints new worktree path | Prints path and `cd`s into it |
-| `rmtree` (no args) | Prints main repo path | Prints path and `cd`s back |
-| `rmtree <path>` | Prints main repo path | Prints path (no `cd`) |
+| `temptree` | Prints new worktree path | `cd`s into it (no output) |
+| `rmtree` (no args) | Prints main repo path | `cd`s back (no output) |
+| `rmtree <path>` | Prints main repo path | No `cd` (no output) |
 
 ## Environment variables
 
@@ -98,8 +99,8 @@ cat fish_helpers.fish >> ~/.config/fish/config.fish
 ## How it works
 
 1. `temptree` creates a detached Git worktree at the specified ref
-2. It then CoW-copies your entire working tree (including uncommitted changes and dotfiles) into the worktree
-3. The worktree is named `<repo>-<random>` under the forest dir (e.g., `~/forest/myproject-0042`)
+2. It then copies your entire working tree (including uncommitted changes and dotfiles) into the worktree, using CoW when available
+3. If no directory was specified, the worktree is named `<repo>-<random>` under the forest dir (e.g., `~/forest/myproject-0042`)
 4. `rmtree` removes the worktree via `git worktree remove` and cleans up
 
 Copy-on-write is auto-detected:
