@@ -29,7 +29,9 @@ if [[ -n "${TEMPTREE_FOREST_DIR:-}" && "$forest_dir" != /* ]]; then
 fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "error: not inside a git repository"
-repo_name="$(basename "$repo_root")"
+main_worktree="$(git worktree list --porcelain | head -1)"
+main_worktree="${main_worktree#worktree }"
+repo_name="$(basename "$main_worktree")"
 
 worktree_dir=""
 ref="HEAD"
