@@ -5,12 +5,16 @@ forest_dir="${TEMPTREE_FOREST_DIR:-$HOME/forest}"
 
 usage() {
   cat <<'USAGE'
-Usage: temptree [ref] [worktree_dir]
+Usage: temptree [-n name] [ref]
+       temptree -d <worktree_dir> [ref]
 
 Creates a temporary git worktree and COW-copies the entire working tree into it.
 If ref is omitted, HEAD is used.
 If worktree_dir is omitted, a directory is created under TEMPTREE_FOREST_DIR (default ~/forest).
-To specify only a directory, use: temptree -d <worktree_dir> [ref]
+
+Options:
+  -n, --name <name>  Use <name> as the directory suffix instead of a random number
+  -d, --dir <path>   Use <path> as the worktree directory
 USAGE
 }
 
@@ -34,7 +38,15 @@ main_worktree="${main_worktree#worktree }"
 repo_name="$(basename "$main_worktree")"
 
 worktree_dir=""
+name=""
 ref="HEAD"
+
+if [[ "${1:-}" == "-n" || "${1:-}" == "--name" ]]; then
+  name="${2:-}"
+  [[ -n "$name" ]] || die "error: --name requires a value"
+  shift 2
+fi
+
 if [[ "${1:-}" == "-d" || "${1:-}" == "--dir" ]]; then
   worktree_dir="${2:-}"
   [[ -n "$worktree_dir" ]] || die "error: --dir requires a path"
@@ -63,11 +75,16 @@ trap cleanup EXIT INT TERM
 
 if [[ -z "${worktree_dir}" ]]; then
   mkdir -p "$forest_dir"
-  while :; do
-    rand="$(printf '%04d' $((RANDOM % 10000)))"
-    worktree_dir="$forest_dir/${repo_name}-${rand}"
-    [[ -e "$worktree_dir" ]] || break
-  done
+  if [[ -n "$name" ]]; then
+    worktree_dir="$forest_dir/${repo_name}-${name}"
+    [[ -e "$worktree_dir" ]] && die "error: $worktree_dir already exists"
+  else
+    while :; do
+      rand="$(printf '%04d' $((RANDOM % 10000)))"
+      worktree_dir="$forest_dir/${repo_name}-${rand}"
+      [[ -e "$worktree_dir" ]] || break
+    done
+  fi
 else
   if [[ -e "$worktree_dir" ]]; then
     if [[ -d "$worktree_dir" && -z "$(ls -A "$worktree_dir")" ]]; then
