@@ -81,6 +81,12 @@ cat shell_helpers.sh >> ~/.bashrc   # or ~/.zshrc
 cat fish_helpers.fish >> ~/.config/fish/config.fish
 ```
 
+**Nushell:**
+
+```nu
+open nushell_helpers.nu | save --append $nu.config-path
+```
+
 ### With vs. without shell helpers
 
 | Action | Without helpers | With helpers |
