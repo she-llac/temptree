@@ -119,7 +119,7 @@ if [[ "$dry_run" == "true" ]]; then
   exit 0
 fi
 
-if ! git -C "$repo_root" worktree add --detach "$worktree_dir" "$ref" >/dev/null 2>&1; then
+if ! git -C "$repo_root" worktree add --detach -- "$worktree_dir" "$ref" >/dev/null 2>&1; then
   die "failed to create worktree (is '$ref' a valid ref?)"
 fi
 created=true
