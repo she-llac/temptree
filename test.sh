@@ -670,6 +670,68 @@ assert_eq "returns main root" "$dir" "$main"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 echo
 
+# === Test 56: bare repository ===
+echo -e "${BOLD}Test 56: bare repository${RESET}"
+bare_dir=$(mktmp)
+rm -rf "$bare_dir"
+git init --bare -q "$bare_dir"
+output=$(cd "$bare_dir" && "$TEMPTREE" 2>&1)
+status=$?
+assert_eq "fails" "1" "$status"
+assert_contains "error message" "not inside a git repository" "$output"
+echo
+
+# === Test 57: tag ref ===
+echo -e "${BOLD}Test 57: tag ref${RESET}"
+git tag v1.0-test HEAD~1
+wt=$("$TEMPTREE" v1.0-test)
+wt_commit=$(git -C "$wt" rev-parse HEAD)
+expected_commit=$(git rev-parse v1.0-test)
+assert_eq "worktree at tag ref" "$expected_commit" "$wt_commit"
+assert_eq "file content from worktree" "v3" "$(cat "$wt/file.txt")"
+remove_wt "$wt"
+echo
+
+# === Test 58: relative -d path from subdirectory ===
+echo -e "${BOLD}Test 58: relative -d from subdirectory${RESET}"
+cd "$dir/sub" || exit
+wt=$("$TEMPTREE" -d "../rel-wt")
+assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
+assert_eq "path is absolute" "/" "${wt:0:1}"
+assert_eq "file copied" "v3" "$(cat "$wt/file.txt")"
+remove_wt "$wt"
+cd "$dir" || exit
+echo
+
+# === Test 59: TEMPTREE_FOREST_DIR with trailing slash ===
+echo -e "${BOLD}Test 59: trailing slash in TEMPTREE_FOREST_DIR${RESET}"
+trailing_forest=$(mktmp)
+wt=$(TEMPTREE_FOREST_DIR="$trailing_forest/" "$TEMPTREE")
+assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
+assert_eq "file copied" "v3" "$(cat "$wt/file.txt")"
+TEMPTREE_FOREST_DIR="$trailing_forest/" "$RMTREE" "$wt" >/dev/null
+echo
+
+# === Test 60: -n with whitespace-only name ===
+echo -e "${BOLD}Test 60: -n with whitespace name${RESET}"
+wt=$("$TEMPTREE" -n " ")
+assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
+assert_contains "space in path" " " "$(basename "$wt")"
+remove_wt "$wt"
+echo
+
+# === Test 61: relative -d with .. components ===
+echo -e "${BOLD}Test 61: relative -d with ..${RESET}"
+mkdir -p "$dir/deep"
+cd "$dir/deep" || exit
+wt=$("$TEMPTREE" -d "../../dotdot-wt")
+assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
+assert_eq "path is absolute" "/" "${wt:0:1}"
+remove_wt "$wt"
+rmdir "$dir/deep" 2>/dev/null
+cd "$dir" || exit
+echo
+
 # --- results ---
 echo -e "${BOLD}Results: ${GREEN}$pass passed${RESET}, ${RED}$fail failed${RESET}"
 exit "$fail"
