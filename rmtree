@@ -58,6 +58,11 @@ target="$(cd "$target" && pwd)"
 
 wt_root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" || die "error: not in a git worktree"
 
+# Refuse to remove the main worktree.
+# For main worktrees --git-dir is ".git"; for linked worktrees it's an absolute path.
+git_dir="$(git -C "$wt_root" rev-parse --git-dir)"
+[[ "$git_dir" != ".git" ]] || die "error: refusing to remove the main worktree: $wt_root"
+
 case "$wt_root" in
   "$forest_dir"/*) ;;
   *)
