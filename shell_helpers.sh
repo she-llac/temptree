@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 temptree() {
   local dir
   dir="$(command temptree "$@")" || return

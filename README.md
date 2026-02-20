@@ -27,6 +27,11 @@ Create at a specific ref:
 temptree my-branch
 ```
 
+> **Note:** The ref controls what git history is visible in the worktree, not
+> the file contents. Files are always copied from your current working tree.
+> This means `temptree my-branch` gives you your uncommitted work with
+> `git log` showing `my-branch`.
+
 Create at a specific ref in a specific directory:
 
 ```sh
@@ -55,6 +60,16 @@ Remove a worktree outside the forest dir (requires `--force`):
 
 ```sh
 rmtree -f /tmp/my-wt
+```
+
+### Dry run
+
+Preview what either command would do without making changes:
+
+```sh
+temptree --dry-run
+temptree --dry-run -n experiment HEAD~1
+rmtree --dry-run ~/forest/myrepo-2137
 ```
 
 Both scripts support `-h`/`--help` for quick reference.
@@ -124,6 +139,7 @@ If creation fails partway through, the incomplete worktree is automatically clea
 
 - `temptree` only works inside a Git repository
 - `rmtree` refuses to delete worktrees outside the forest dir unless you pass `-f`/`--force`
+- `rmtree` refuses to delete the main worktree of a repository (even with `--force`)
 - Dotfiles (e.g., `.env`) are copied along with everything else
 - The `.git` directory is not copied (it's managed by Git's worktree mechanism)
 
