@@ -68,7 +68,7 @@ completed=false
 
 cleanup() {
   if [[ "$created" == "true" && "$completed" == "false" ]]; then
-    git -C "$repo_root" worktree remove --force "$worktree_dir" >/dev/null 2>&1 || rm -rf "$worktree_dir"
+    git -C "$repo_root" worktree remove --force "$worktree_dir" >/dev/null 2>&1 || true
   fi
 }
 

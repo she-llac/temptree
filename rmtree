@@ -79,7 +79,7 @@ fi
 
 main_root="$(cd "$common_dir/.." && pwd)"
 
-git -C "$wt_root" worktree remove --force "$wt_root" >/dev/null 2>&1 || rm -rf "$wt_root"
+git -C "$main_root" worktree remove --force "$wt_root" >/dev/null
 
 if [[ "${TEMPTREE_PRUNE_FOREST:-1}" != "0" ]]; then
   rmdir "$forest_dir" >/dev/null 2>&1 || true
