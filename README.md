@@ -9,7 +9,7 @@ rmtree                # clean up and return to main repo
 ```
 
 Creates a detached worktree and copies your working tree into it (using
-copy-on-write when available) — uncommitted changes included. Your main checkout
+copy-on-write when available), uncommitted changes included. Your main checkout
 stays untouched.
 
 ## Usage
@@ -125,7 +125,8 @@ If creation fails partway through, the incomplete worktree is automatically clea
 
 ## See also
 
-- [try](https://github.com/tobi/try) — fuzzy-searchable experiment directories with auto-dating
+- [git-snapshot](https://github.com/she-llac/git-snapshot) - zero-side-effect working tree snapshots for Git
+- [try](https://github.com/tobi/try) - fuzzy-searchable experiment directories with auto-dating
 
 ## License
 
