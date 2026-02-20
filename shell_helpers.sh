@@ -16,7 +16,7 @@ rmtree() {
     esac
   done
   dir="$(command rmtree "$@")" || return
-  if [[ "$has_path" == false ]]; then
+  if [[ "$has_path" == false && -n "$dir" ]]; then
     builtin cd "$dir" || return
   fi
 }

@@ -20,7 +20,7 @@ function rmtree
     end
   end
   set -l dir (command rmtree $argv); or return
-  if test "$has_path" = false
+  if test "$has_path" = false -a -n "$dir"
     cd $dir; or return
   end
 end

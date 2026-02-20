@@ -8,7 +8,7 @@ def --env rmtree [...args: string] {
     not ($a starts-with "-") and $a != "--force" and $a != "-f" and $a != "--dry-run"
   })
   let dir = (^rmtree ...$args)
-  if not $has_path {
+  if not $has_path and ($dir | is-not-empty) {
     cd $dir
   }
 }
