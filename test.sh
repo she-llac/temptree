@@ -271,8 +271,16 @@ leftover=$(find "$TEMPTREE_FOREST_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/nu
 assert_eq "nothing created" "0" "$leftover"
 echo
 
-# === Test 18: --dry-run with options ===
-echo -e "${BOLD}Test 18: --dry-run with options${RESET}"
+# === Test 18: --dry-run does not create forest dir ===
+echo -e "${BOLD}Test 18: --dry-run no side effects${RESET}"
+dry_forest=$(mktmp)
+rmdir "$dry_forest"  # remove so we can check it doesn't get recreated
+TEMPTREE_FOREST_DIR="$dry_forest" "$TEMPTREE" --dry-run 2>/dev/null
+assert_eq "forest dir not created" "no" "$(test -d "$dry_forest" && echo yes || echo no)"
+echo
+
+# === Test 19: --dry-run with options ===
+echo -e "${BOLD}Test 19: --dry-run with options${RESET}"
 dry_output=$("$TEMPTREE" --dry-run -n "drytest" HEAD~1 2>&1)
 dry_status=$?
 assert_eq "exits zero" "0" "$dry_status"
@@ -280,8 +288,8 @@ assert_contains "shows name" "drytest" "$dry_output"
 assert_contains "shows ref" "HEAD~1" "$dry_output"
 echo
 
-# === Test 19: help ===
-echo -e "${BOLD}Test 19: temptree help${RESET}"
+# === Test 20: help ===
+echo -e "${BOLD}Test 20: temptree help${RESET}"
 help_output=$("$TEMPTREE" -h)
 help_status=$?
 assert_eq "exits zero" "0" "$help_status"
@@ -291,24 +299,24 @@ help_output2=$("$TEMPTREE" --help)
 assert_contains "long flag works" "Usage: temptree" "$help_output2"
 echo
 
-# === Test 20: unknown option ===
-echo -e "${BOLD}Test 20: temptree unknown option${RESET}"
+# === Test 21: unknown option ===
+echo -e "${BOLD}Test 21: temptree unknown option${RESET}"
 output=$("$TEMPTREE" --bogus 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
 assert_contains "error message" "unknown option" "$output"
 echo
 
-# === Test 21: too many arguments ===
-echo -e "${BOLD}Test 21: temptree too many args${RESET}"
+# === Test 22: too many arguments ===
+echo -e "${BOLD}Test 22: temptree too many args${RESET}"
 output=$("$TEMPTREE" a b c 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
 assert_contains "error message" "too many arguments" "$output"
 echo
 
-# === Test 22: option order independence ===
-echo -e "${BOLD}Test 22: option order independence${RESET}"
+# === Test 23: option order independence ===
+echo -e "${BOLD}Test 23: option order independence${RESET}"
 # -n after ref
 wt=$("$TEMPTREE" HEAD -n "ordertest")
 assert_contains "name applied" "ordertest" "$wt"
@@ -318,8 +326,8 @@ dry_output=$("$TEMPTREE" --dry-run -n "order2" 2>&1)
 assert_contains "dry-run works" "order2" "$dry_output"
 echo
 
-# === Test 23: symlinks preserved ===
-echo -e "${BOLD}Test 23: symlinks${RESET}"
+# === Test 24: symlinks preserved ===
+echo -e "${BOLD}Test 24: symlinks${RESET}"
 echo "target content" > real.txt
 ln -s real.txt link.txt
 wt=$("$TEMPTREE")
@@ -330,8 +338,8 @@ rm -f real.txt link.txt
 remove_wt "$wt"
 echo
 
-# === Test 24: binary files ===
-echo -e "${BOLD}Test 24: binary files${RESET}"
+# === Test 25: binary files ===
+echo -e "${BOLD}Test 25: binary files${RESET}"
 dd if=/dev/urandom of=binary.bin bs=1024 count=64 2>/dev/null
 expected_md5=$(md5 -q binary.bin)
 wt=$("$TEMPTREE")
@@ -341,8 +349,8 @@ rm -f binary.bin
 remove_wt "$wt"
 echo
 
-# === Test 25: -m/--message style flag rejected ===
-echo -e "${BOLD}Test 25: missing value for -n${RESET}"
+# === Test 26: -m/--message style flag rejected ===
+echo -e "${BOLD}Test 26: missing value for -n${RESET}"
 output=$("$TEMPTREE" -n 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
@@ -356,24 +364,24 @@ echo
 
 # ===== RMTREE TESTS =====
 
-# === Test 26: rmtree by path ===
-echo -e "${BOLD}Test 26: rmtree by path${RESET}"
+# === Test 27: rmtree by path ===
+echo -e "${BOLD}Test 27: rmtree by path${RESET}"
 wt=$("$TEMPTREE")
 main=$("$RMTREE" "$wt")
 assert_eq "returns main root" "$dir" "$main"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 echo
 
-# === Test 27: rmtree no args (current dir) ===
-echo -e "${BOLD}Test 27: rmtree no args${RESET}"
+# === Test 28: rmtree no args (current dir) ===
+echo -e "${BOLD}Test 28: rmtree no args${RESET}"
 wt=$("$TEMPTREE")
 main=$(cd "$wt" && "$RMTREE")
 assert_eq "returns main root" "$dir" "$main"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 echo
 
-# === Test 28: rmtree --force required outside forest ===
-echo -e "${BOLD}Test 28: rmtree --force required${RESET}"
+# === Test 29: rmtree --force required outside forest ===
+echo -e "${BOLD}Test 29: rmtree --force required${RESET}"
 custom_dir=$(mktmp)/outside-wt
 wt=$("$TEMPTREE" -d "$custom_dir")
 output=$("$RMTREE" "$wt" 2>&1)
@@ -387,8 +395,8 @@ assert_eq "succeeds with --force" "$dir" "$main"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 echo
 
-# === Test 29: rmtree refuses main worktree ===
-echo -e "${BOLD}Test 29: rmtree refuses main worktree${RESET}"
+# === Test 30: rmtree refuses main worktree ===
+echo -e "${BOLD}Test 30: rmtree refuses main worktree${RESET}"
 output=$("$RMTREE" -f "$dir" 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
@@ -396,8 +404,8 @@ assert_contains "error mentions main worktree" "main worktree" "$output"
 assert_eq "main repo still exists" "yes" "$(test -d "$dir" && echo yes || echo no)"
 echo
 
-# === Test 30: rmtree refuses main worktree inside forest ===
-echo -e "${BOLD}Test 30: rmtree refuses main worktree in forest${RESET}"
+# === Test 31: rmtree refuses main worktree inside forest ===
+echo -e "${BOLD}Test 31: rmtree refuses main worktree in forest${RESET}"
 forest_repo="$TEMPTREE_FOREST_DIR/fake-main"
 mkdir -p "$forest_repo"
 git -C "$forest_repo" init -q
@@ -410,16 +418,16 @@ assert_eq "repo still exists" "yes" "$(test -d "$forest_repo" && echo yes || ech
 rm -rf "$forest_repo"
 echo
 
-# === Test 31: rmtree non-directory ===
-echo -e "${BOLD}Test 31: rmtree non-directory${RESET}"
+# === Test 32: rmtree non-directory ===
+echo -e "${BOLD}Test 32: rmtree non-directory${RESET}"
 output=$("$RMTREE" /nonexistent/path 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
 assert_contains "error message" "not a directory" "$output"
 echo
 
-# === Test 32: rmtree non-git directory ===
-echo -e "${BOLD}Test 32: rmtree non-git directory${RESET}"
+# === Test 33: rmtree non-git directory ===
+echo -e "${BOLD}Test 33: rmtree non-git directory${RESET}"
 nogit_dir=$(mktmp)
 output=$("$RMTREE" -f "$nogit_dir" 2>&1)
 status=$?
@@ -427,8 +435,8 @@ assert_eq "fails" "1" "$status"
 assert_contains "error message" "not in a git worktree" "$output"
 echo
 
-# === Test 33: rmtree --dry-run ===
-echo -e "${BOLD}Test 33: rmtree --dry-run${RESET}"
+# === Test 34: rmtree --dry-run ===
+echo -e "${BOLD}Test 34: rmtree --dry-run${RESET}"
 wt=$("$TEMPTREE")
 dry_output=$("$RMTREE" --dry-run "$wt" 2>&1)
 dry_status=$?
@@ -439,8 +447,8 @@ assert_eq "worktree NOT removed" "yes" "$(test -d "$wt" && echo yes || echo no)"
 remove_wt "$wt"
 echo
 
-# === Test 34: TEMPTREE_PRUNE_FOREST ===
-echo -e "${BOLD}Test 34: TEMPTREE_PRUNE_FOREST${RESET}"
+# === Test 35: TEMPTREE_PRUNE_FOREST ===
+echo -e "${BOLD}Test 35: TEMPTREE_PRUNE_FOREST${RESET}"
 prune_forest=$(mktmp)
 wt=$(TEMPTREE_FOREST_DIR="$prune_forest" "$TEMPTREE")
 TEMPTREE_PRUNE_FOREST=0 TEMPTREE_FOREST_DIR="$prune_forest" "$RMTREE" "$wt" >/dev/null
@@ -450,8 +458,8 @@ TEMPTREE_PRUNE_FOREST=1 TEMPTREE_FOREST_DIR="$prune_forest" "$RMTREE" "$wt" >/de
 assert_eq "forest pruned with PRUNE=1" "no" "$(test -d "$prune_forest" && echo yes || echo no)"
 echo
 
-# === Test 35: rmtree help ===
-echo -e "${BOLD}Test 35: rmtree help${RESET}"
+# === Test 36: rmtree help ===
+echo -e "${BOLD}Test 36: rmtree help${RESET}"
 help_output=$("$RMTREE" -h)
 help_status=$?
 assert_eq "exits zero" "0" "$help_status"
@@ -460,24 +468,24 @@ assert_contains "documents --dry-run" "dry-run" "$help_output"
 assert_contains "documents --force" "force" "$help_output"
 echo
 
-# === Test 36: rmtree unknown option ===
-echo -e "${BOLD}Test 36: rmtree unknown option${RESET}"
+# === Test 37: rmtree unknown option ===
+echo -e "${BOLD}Test 37: rmtree unknown option${RESET}"
 output=$("$RMTREE" --bogus 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
 assert_contains "error message" "unknown option" "$output"
 echo
 
-# === Test 37: rmtree too many args ===
-echo -e "${BOLD}Test 37: rmtree too many args${RESET}"
+# === Test 38: rmtree too many args ===
+echo -e "${BOLD}Test 38: rmtree too many args${RESET}"
 output=$("$RMTREE" a b 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
 assert_contains "error message" "too many arguments" "$output"
 echo
 
-# === Test 38: cleanup on failed copy does not leak worktree ===
-echo -e "${BOLD}Test 38: cleanup on failure${RESET}"
+# === Test 39: cleanup on failed copy does not leak worktree ===
+echo -e "${BOLD}Test 39: cleanup on failure${RESET}"
 # Make repo_root temporarily unreadable to break the copy step
 # (We can't easily do this without root, so test the invalid-ref case instead,
 # which verifies the cleanup trap doesn't leave partial state)
@@ -487,8 +495,8 @@ after=$(git worktree list --porcelain | grep -c '^worktree')
 assert_eq "no stale worktree entries" "$before" "$after"
 echo
 
-# === Test 39: positional dir form (backward compat) ===
-echo -e "${BOLD}Test 39: positional dir form${RESET}"
+# === Test 40: positional dir form (backward compat) ===
+echo -e "${BOLD}Test 40: positional dir form${RESET}"
 pos_dir=$(mktmp)/pos-wt
 wt=$("$TEMPTREE" HEAD "$pos_dir")
 assert_eq "created at positional path" "$pos_dir" "$wt"
@@ -496,16 +504,16 @@ assert_eq "file copied" "v3" "$(cat "$wt/file.txt")"
 remove_wt "$wt"
 echo
 
-# === Test 40: positional dir conflicts with -d ===
-echo -e "${BOLD}Test 40: positional dir + -d conflict${RESET}"
+# === Test 41: positional dir conflicts with -d ===
+echo -e "${BOLD}Test 41: positional dir + -d conflict${RESET}"
 output=$("$TEMPTREE" -d /tmp/a HEAD /tmp/b 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
 assert_contains "error message" "cannot specify directory both" "$output"
 echo
 
-# === Test 41: -- separator in temptree ===
-echo -e "${BOLD}Test 41: temptree -- separator${RESET}"
+# === Test 42: -- separator in temptree ===
+echo -e "${BOLD}Test 42: temptree -- separator${RESET}"
 wt=$("$TEMPTREE" -- HEAD)
 assert_eq "creates with -- before ref" "yes" "$(test -d "$wt" && echo yes || echo no)"
 assert_eq "file copied" "v3" "$(cat "$wt/file.txt")"
@@ -516,16 +524,16 @@ assert_contains "name applied with --" "dashtest" "$wt"
 remove_wt "$wt"
 echo
 
-# === Test 42: -- separator in rmtree ===
-echo -e "${BOLD}Test 42: rmtree -- separator${RESET}"
+# === Test 43: -- separator in rmtree ===
+echo -e "${BOLD}Test 43: rmtree -- separator${RESET}"
 wt=$("$TEMPTREE")
 main=$("$RMTREE" -- "$wt")
 assert_eq "returns main root" "$dir" "$main"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 echo
 
-# === Test 43: -n with slashes rejected ===
-echo -e "${BOLD}Test 43: -n with slashes rejected${RESET}"
+# === Test 44: -n with slashes rejected ===
+echo -e "${BOLD}Test 44: -n with slashes rejected${RESET}"
 output=$("$TEMPTREE" -n "foo/bar" 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
@@ -535,8 +543,8 @@ status=$?
 assert_eq "fails (deeper)" "1" "$status"
 echo
 
-# === Test 44: -d with a regular file ===
-echo -e "${BOLD}Test 44: -d with regular file${RESET}"
+# === Test 45: -d with a regular file ===
+echo -e "${BOLD}Test 45: -d with regular file${RESET}"
 tmpfile=$(mktemp)
 output=$("$TEMPTREE" -d "$tmpfile" 2>&1)
 status=$?
@@ -545,8 +553,8 @@ assert_contains "error message" "is not a directory" "$output"
 rm -f "$tmpfile"
 echo
 
-# === Test 45: filenames with spaces ===
-echo -e "${BOLD}Test 45: filenames with spaces${RESET}"
+# === Test 46: filenames with spaces ===
+echo -e "${BOLD}Test 46: filenames with spaces${RESET}"
 echo "spaced" > "$dir/file with spaces.txt"
 mkdir -p "$dir/dir with spaces"
 echo "deep spaced" > "$dir/dir with spaces/inner file.txt"
@@ -557,8 +565,8 @@ rm -rf "$dir/file with spaces.txt" "$dir/dir with spaces"
 remove_wt "$wt"
 echo
 
-# === Test 46: empty working tree (no files besides .git) ===
-echo -e "${BOLD}Test 46: empty working tree${RESET}"
+# === Test 47: empty working tree (no files besides .git) ===
+echo -e "${BOLD}Test 47: empty working tree${RESET}"
 empty_repo=$(mktmp)
 git -C "$empty_repo" init -q
 git -C "$empty_repo" commit --allow-empty -q -m "empty"
@@ -571,8 +579,8 @@ assert_eq "only .git in worktree" ".git" "$wt_files"
 git -C "$empty_repo" worktree remove --force "$wt" 2>/dev/null
 echo
 
-# === Test 47: symlink-to-directory preserved ===
-echo -e "${BOLD}Test 47: symlink-to-directory${RESET}"
+# === Test 48: symlink-to-directory preserved ===
+echo -e "${BOLD}Test 48: symlink-to-directory${RESET}"
 mkdir -p "$dir/realdir"
 echo "inside" > "$dir/realdir/inner.txt"
 ln -s realdir "$dir/linkdir"
@@ -585,8 +593,8 @@ rm -rf "$dir/realdir" "$dir/linkdir"
 remove_wt "$wt"
 echo
 
-# === Test 48: file permissions preserved ===
-echo -e "${BOLD}Test 48: file permissions${RESET}"
+# === Test 49: file permissions preserved ===
+echo -e "${BOLD}Test 49: file permissions${RESET}"
 echo "exec" > "$dir/script.sh"; chmod 755 "$dir/script.sh"
 echo "ro" > "$dir/locked.txt"; chmod 444 "$dir/locked.txt"
 echo "priv" > "$dir/secret.txt"; chmod 600 "$dir/secret.txt"
@@ -599,8 +607,8 @@ rm -f "$dir/script.sh" "$dir/locked.txt" "$dir/secret.txt"
 remove_wt "$wt"
 echo
 
-# === Test 49: rmtree from subdirectory of worktree ===
-echo -e "${BOLD}Test 49: rmtree from subdirectory${RESET}"
+# === Test 50: rmtree from subdirectory of worktree ===
+echo -e "${BOLD}Test 50: rmtree from subdirectory${RESET}"
 mkdir -p "$dir/a/b"
 echo "deep" > "$dir/a/b/f.txt"
 wt=$("$TEMPTREE")
@@ -610,8 +618,8 @@ assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 rm -rf "$dir/a"
 echo
 
-# === Test 50: nested temptree (temptree from inside a temptree) ===
-echo -e "${BOLD}Test 50: nested temptree${RESET}"
+# === Test 51: nested temptree (temptree from inside a temptree) ===
+echo -e "${BOLD}Test 51: nested temptree${RESET}"
 wt1=$("$TEMPTREE")
 echo "nested" > "$wt1/nested.txt"
 wt2=$(cd "$wt1" && "$TEMPTREE")
@@ -625,16 +633,16 @@ remove_wt "$wt2"
 remove_wt "$wt1"
 echo
 
-# === Test 51: -n with spaces ===
-echo -e "${BOLD}Test 51: -n with spaces${RESET}"
+# === Test 52: -n with spaces ===
+echo -e "${BOLD}Test 52: -n with spaces${RESET}"
 wt=$("$TEMPTREE" -n "my experiment")
 assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
 assert_contains "name in path" "my experiment" "$wt"
 remove_wt "$wt"
 echo
 
-# === Test 52: --dry-run with -d ===
-echo -e "${BOLD}Test 52: temptree --dry-run with -d${RESET}"
+# === Test 53: --dry-run with -d ===
+echo -e "${BOLD}Test 53: temptree --dry-run with -d${RESET}"
 custom_dry_dir=$(mktmp)/dry-custom
 dry_output=$("$TEMPTREE" --dry-run -d "$custom_dry_dir" 2>&1)
 dry_status=$?
@@ -643,8 +651,8 @@ assert_contains "shows custom path" "$custom_dry_dir" "$dry_output"
 assert_eq "nothing created" "no" "$(test -e "$custom_dry_dir" && echo yes || echo no)"
 echo
 
-# === Test 53: rmtree with relative path ===
-echo -e "${BOLD}Test 53: rmtree with relative path${RESET}"
+# === Test 54: rmtree with relative path ===
+echo -e "${BOLD}Test 54: rmtree with relative path${RESET}"
 wt=$("$TEMPTREE")
 wt_name=$(basename "$wt")
 main=$(cd "$TEMPTREE_FOREST_DIR" && "$RMTREE" "./$wt_name")
@@ -652,8 +660,8 @@ assert_eq "returns main root" "$dir" "$main"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 echo
 
-# === Test 54: rmtree with --force and no path (current dir outside forest) ===
-echo -e "${BOLD}Test 54: rmtree --force no path${RESET}"
+# === Test 55: rmtree with --force and no path (current dir outside forest) ===
+echo -e "${BOLD}Test 55: rmtree --force no path${RESET}"
 outside_dir=$(mktmp)/outside-force-wt
 wt=$("$TEMPTREE" -d "$outside_dir")
 main=$(cd "$wt" && "$RMTREE" --force)
@@ -661,8 +669,8 @@ assert_eq "returns main root" "$dir" "$main"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 echo
 
-# === Test 55: rmtree -f no path (current dir outside forest) ===
-echo -e "${BOLD}Test 55: rmtree -f no path${RESET}"
+# === Test 56: rmtree -f no path (current dir outside forest) ===
+echo -e "${BOLD}Test 56: rmtree -f no path${RESET}"
 outside_dir2=$(mktmp)/outside-f-wt
 wt=$("$TEMPTREE" -d "$outside_dir2")
 main=$(cd "$wt" && "$RMTREE" -f)
@@ -670,8 +678,8 @@ assert_eq "returns main root" "$dir" "$main"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 echo
 
-# === Test 56: bare repository ===
-echo -e "${BOLD}Test 56: bare repository${RESET}"
+# === Test 57: bare repository ===
+echo -e "${BOLD}Test 57: bare repository${RESET}"
 bare_dir=$(mktmp)
 rm -rf "$bare_dir"
 git init --bare -q "$bare_dir"
@@ -681,8 +689,8 @@ assert_eq "fails" "1" "$status"
 assert_contains "error message" "not inside a git repository" "$output"
 echo
 
-# === Test 57: tag ref ===
-echo -e "${BOLD}Test 57: tag ref${RESET}"
+# === Test 58: tag ref ===
+echo -e "${BOLD}Test 58: tag ref${RESET}"
 git tag v1.0-test HEAD~1
 wt=$("$TEMPTREE" v1.0-test)
 wt_commit=$(git -C "$wt" rev-parse HEAD)
@@ -692,8 +700,8 @@ assert_eq "file content from worktree" "v3" "$(cat "$wt/file.txt")"
 remove_wt "$wt"
 echo
 
-# === Test 58: relative -d path from subdirectory ===
-echo -e "${BOLD}Test 58: relative -d from subdirectory${RESET}"
+# === Test 59: relative -d path from subdirectory ===
+echo -e "${BOLD}Test 59: relative -d from subdirectory${RESET}"
 cd "$dir/sub" || exit
 wt=$("$TEMPTREE" -d "../rel-wt")
 assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
@@ -703,8 +711,8 @@ remove_wt "$wt"
 cd "$dir" || exit
 echo
 
-# === Test 59: TEMPTREE_FOREST_DIR with trailing slash ===
-echo -e "${BOLD}Test 59: trailing slash in TEMPTREE_FOREST_DIR${RESET}"
+# === Test 60: TEMPTREE_FOREST_DIR with trailing slash ===
+echo -e "${BOLD}Test 60: trailing slash in TEMPTREE_FOREST_DIR${RESET}"
 trailing_forest=$(mktmp)
 wt=$(TEMPTREE_FOREST_DIR="$trailing_forest/" "$TEMPTREE")
 assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
@@ -712,16 +720,16 @@ assert_eq "file copied" "v3" "$(cat "$wt/file.txt")"
 TEMPTREE_FOREST_DIR="$trailing_forest/" "$RMTREE" "$wt" >/dev/null
 echo
 
-# === Test 60: -n with whitespace-only name ===
-echo -e "${BOLD}Test 60: -n with whitespace name${RESET}"
+# === Test 61: -n with whitespace-only name ===
+echo -e "${BOLD}Test 61: -n with whitespace name${RESET}"
 wt=$("$TEMPTREE" -n " ")
 assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
 assert_contains "space in path" " " "$(basename "$wt")"
 remove_wt "$wt"
 echo
 
-# === Test 61: relative -d with .. components ===
-echo -e "${BOLD}Test 61: relative -d with ..${RESET}"
+# === Test 62: relative -d with .. components ===
+echo -e "${BOLD}Test 62: relative -d with ..${RESET}"
 mkdir -p "$dir/deep"
 cd "$dir/deep" || exit
 wt=$("$TEMPTREE" -d "../../dotdot-wt")

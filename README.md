@@ -148,7 +148,7 @@ If creation fails partway through, the incomplete worktree is automatically clea
 
 ## Testing
 
-61 tests (160 assertions) covering both scripts end-to-end:
+62 tests (161 assertions) covering both scripts end-to-end:
 
 ```sh
 bash test.sh

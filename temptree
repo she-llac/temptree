@@ -90,7 +90,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 if [[ -z "$worktree_dir" ]]; then
-  mkdir -p "$forest_dir"
+  [[ "$dry_run" == "true" ]] || mkdir -p "$forest_dir"
   if [[ -n "$name" ]]; then
     worktree_dir="$forest_dir/${repo_name}-${name}"
     [[ ! -e "$worktree_dir" ]] || die "$worktree_dir already exists"
