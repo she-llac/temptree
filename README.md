@@ -111,8 +111,11 @@ open nushell_helpers.nu | save --append $nu.config-path
 | Action | Without helpers | With helpers |
 |--------|-----------------|--------------|
 | `temptree` | Prints new worktree path | `cd`s into it (no output) |
-| `rmtree` (no args) | Prints main repo path | `cd`s back (no output) |
+| `rmtree` (no path) | Prints main repo path | `cd`s back (no output) |
 | `rmtree <path>` | Prints main repo path | No `cd` (no output) |
+
+> `rmtree -f` and `rmtree --dry-run` (flags but no path) are treated the same
+> as no-args — the helpers `cd` back when no path operand is given.
 
 ## Environment variables
 
