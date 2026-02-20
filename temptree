@@ -74,6 +74,10 @@ esac
 [[ -z "$name" || "$name" != */* ]] \
   || die "name must not contain '/'"
 
+if [[ -n "$worktree_dir" && "$worktree_dir" != /* ]]; then
+  worktree_dir="$(pwd)/$worktree_dir"
+fi
+
 created=false
 completed=false
 
