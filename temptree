@@ -128,7 +128,7 @@ created=true
   if [[ "${#files[@]}" -eq 0 ]]; then
     exit 0
   fi
-  if cp -cR -- "${files[@]}" "$worktree_dir"/ 2>/dev/null; then
+  if cp -cpR -- "${files[@]}" "$worktree_dir"/ 2>/dev/null; then
     :
   elif cp --reflink=auto -a -- "${files[@]}" "$worktree_dir"/ 2>/dev/null; then
     :
