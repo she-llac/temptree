@@ -490,6 +490,173 @@ assert_eq "fails" "1" "$status"
 assert_contains "error message" "cannot specify directory both" "$output"
 echo
 
+# === Test 41: -- separator in temptree ===
+echo -e "${BOLD}Test 41: temptree -- separator${RESET}"
+wt=$("$TEMPTREE" -- HEAD)
+assert_eq "creates with -- before ref" "yes" "$(test -d "$wt" && echo yes || echo no)"
+assert_eq "file copied" "v3" "$(cat "$wt/file.txt")"
+remove_wt "$wt"
+# -- with no ref defaults to HEAD
+wt=$("$TEMPTREE" -n "dashtest" --)
+assert_contains "name applied with --" "dashtest" "$wt"
+remove_wt "$wt"
+echo
+
+# === Test 42: -- separator in rmtree ===
+echo -e "${BOLD}Test 42: rmtree -- separator${RESET}"
+wt=$("$TEMPTREE")
+main=$("$RMTREE" -- "$wt")
+assert_eq "returns main root" "$dir" "$main"
+assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
+echo
+
+# === Test 43: -n with slashes rejected ===
+echo -e "${BOLD}Test 43: -n with slashes rejected${RESET}"
+output=$("$TEMPTREE" -n "foo/bar" 2>&1)
+status=$?
+assert_eq "fails" "1" "$status"
+assert_contains "error message" "must not contain '/'" "$output"
+output=$("$TEMPTREE" -n "a/b/c" 2>&1)
+status=$?
+assert_eq "fails (deeper)" "1" "$status"
+echo
+
+# === Test 44: -d with a regular file ===
+echo -e "${BOLD}Test 44: -d with regular file${RESET}"
+tmpfile=$(mktemp)
+output=$("$TEMPTREE" -d "$tmpfile" 2>&1)
+status=$?
+assert_eq "fails" "1" "$status"
+assert_contains "error message" "is not a directory" "$output"
+rm -f "$tmpfile"
+echo
+
+# === Test 45: filenames with spaces ===
+echo -e "${BOLD}Test 45: filenames with spaces${RESET}"
+echo "spaced" > "$dir/file with spaces.txt"
+mkdir -p "$dir/dir with spaces"
+echo "deep spaced" > "$dir/dir with spaces/inner file.txt"
+wt=$("$TEMPTREE")
+assert_eq "spaced file copied" "spaced" "$(cat "$wt/file with spaces.txt")"
+assert_eq "spaced dir file copied" "deep spaced" "$(cat "$wt/dir with spaces/inner file.txt")"
+rm -rf "$dir/file with spaces.txt" "$dir/dir with spaces"
+remove_wt "$wt"
+echo
+
+# === Test 46: empty working tree (no files besides .git) ===
+echo -e "${BOLD}Test 46: empty working tree${RESET}"
+empty_repo=$(mktemp -d)
+git -C "$empty_repo" init -q
+git -C "$empty_repo" commit --allow-empty -q -m "empty"
+empty_forest=$(mktemp -d)
+wt=$(cd "$empty_repo" && TEMPTREE_FOREST_DIR="$empty_forest" "$TEMPTREE")
+assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
+# Only .git should exist
+wt_files=$(ls -A "$wt")
+assert_eq "only .git in worktree" ".git" "$wt_files"
+git -C "$empty_repo" worktree remove --force "$wt" 2>/dev/null
+rm -rf "$empty_repo" "$empty_forest"
+echo
+
+# === Test 47: symlink-to-directory preserved ===
+echo -e "${BOLD}Test 47: symlink-to-directory${RESET}"
+mkdir -p "$dir/realdir"
+echo "inside" > "$dir/realdir/inner.txt"
+ln -s realdir "$dir/linkdir"
+wt=$("$TEMPTREE")
+assert_eq "dir symlink is a symlink" "yes" "$(test -L "$wt/linkdir" && echo yes || echo no)"
+assert_eq "dir symlink target" "realdir" "$(readlink "$wt/linkdir")"
+assert_eq "content via symlink" "inside" "$(cat "$wt/linkdir/inner.txt")"
+assert_eq "content via realdir" "inside" "$(cat "$wt/realdir/inner.txt")"
+rm -rf "$dir/realdir" "$dir/linkdir"
+remove_wt "$wt"
+echo
+
+# === Test 48: file permissions preserved ===
+echo -e "${BOLD}Test 48: file permissions${RESET}"
+echo "exec" > "$dir/script.sh"; chmod 755 "$dir/script.sh"
+echo "ro" > "$dir/locked.txt"; chmod 444 "$dir/locked.txt"
+echo "priv" > "$dir/secret.txt"; chmod 600 "$dir/secret.txt"
+wt=$("$TEMPTREE")
+assert_eq "755 preserved" "$(stat -f %Lp "$dir/script.sh")" "$(stat -f %Lp "$wt/script.sh")"
+assert_eq "444 preserved" "$(stat -f %Lp "$dir/locked.txt")" "$(stat -f %Lp "$wt/locked.txt")"
+assert_eq "600 preserved" "$(stat -f %Lp "$dir/secret.txt")" "$(stat -f %Lp "$wt/secret.txt")"
+chmod 644 "$dir/locked.txt" "$wt/locked.txt" 2>/dev/null
+rm -f "$dir/script.sh" "$dir/locked.txt" "$dir/secret.txt"
+remove_wt "$wt"
+echo
+
+# === Test 49: rmtree from subdirectory of worktree ===
+echo -e "${BOLD}Test 49: rmtree from subdirectory${RESET}"
+mkdir -p "$dir/a/b"
+echo "deep" > "$dir/a/b/f.txt"
+wt=$("$TEMPTREE")
+main=$(cd "$wt/a/b" && "$RMTREE")
+assert_eq "returns main root" "$dir" "$main"
+assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
+rm -rf "$dir/a"
+echo
+
+# === Test 50: nested temptree (temptree from inside a temptree) ===
+echo -e "${BOLD}Test 50: nested temptree${RESET}"
+wt1=$("$TEMPTREE")
+echo "nested" > "$wt1/nested.txt"
+wt2=$(cd "$wt1" && "$TEMPTREE")
+assert_eq "nested wt created" "yes" "$(test -d "$wt2" && echo yes || echo no)"
+assert_eq "nested file copied" "nested" "$(cat "$wt2/nested.txt")"
+# Both worktrees share the same main repo name
+main_name=$(basename "$(git worktree list --porcelain | head -1 | sed 's/^worktree //')")
+assert_contains "wt1 uses main name" "$main_name" "$(basename "$wt1")"
+assert_contains "wt2 uses main name" "$main_name" "$(basename "$wt2")"
+remove_wt "$wt2"
+remove_wt "$wt1"
+echo
+
+# === Test 51: -n with spaces ===
+echo -e "${BOLD}Test 51: -n with spaces${RESET}"
+wt=$("$TEMPTREE" -n "my experiment")
+assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
+assert_contains "name in path" "my experiment" "$wt"
+remove_wt "$wt"
+echo
+
+# === Test 52: --dry-run with -d ===
+echo -e "${BOLD}Test 52: temptree --dry-run with -d${RESET}"
+custom_dry_dir=$(mktemp -d)/dry-custom
+dry_output=$("$TEMPTREE" --dry-run -d "$custom_dry_dir" 2>&1)
+dry_status=$?
+assert_eq "exits zero" "0" "$dry_status"
+assert_contains "shows custom path" "$custom_dry_dir" "$dry_output"
+assert_eq "nothing created" "no" "$(test -e "$custom_dry_dir" && echo yes || echo no)"
+echo
+
+# === Test 53: rmtree with relative path ===
+echo -e "${BOLD}Test 53: rmtree with relative path${RESET}"
+wt=$("$TEMPTREE")
+wt_name=$(basename "$wt")
+main=$(cd "$TEMPTREE_FOREST_DIR" && "$RMTREE" "./$wt_name")
+assert_eq "returns main root" "$dir" "$main"
+assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
+echo
+
+# === Test 54: rmtree with --force and no path (current dir outside forest) ===
+echo -e "${BOLD}Test 54: rmtree --force no path${RESET}"
+outside_dir=$(mktemp -d)/outside-force-wt
+wt=$("$TEMPTREE" -d "$outside_dir")
+main=$(cd "$wt" && "$RMTREE" --force)
+assert_eq "returns main root" "$dir" "$main"
+assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
+echo
+
+# === Test 55: rmtree -f no path (current dir outside forest) ===
+echo -e "${BOLD}Test 55: rmtree -f no path${RESET}"
+outside_dir2=$(mktemp -d)/outside-f-wt
+wt=$("$TEMPTREE" -d "$outside_dir2")
+main=$(cd "$wt" && "$RMTREE" -f)
+assert_eq "returns main root" "$dir" "$main"
+assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
+echo
+
 # --- results ---
 echo -e "${BOLD}Results: ${GREEN}$pass passed${RESET}, ${RED}$fail failed${RESET}"
 rm -rf "$dir" "$TEMPTREE_FOREST_DIR"
