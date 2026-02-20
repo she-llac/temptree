@@ -5,79 +5,85 @@ forest_dir="${TEMPTREE_FOREST_DIR:-$HOME/forest}"
 
 usage() {
   cat <<'USAGE'
-Usage: rmtree [worktree_dir]
+Usage: rmtree [options] [worktree_dir]
 
-Removes a git worktree under TEMPTREE_FOREST_DIR (default ~/forest) and prints the main repo root.
+Removes a git worktree and prints the main repo root.
 If worktree_dir is omitted, the current directory is used.
-Use -f/--force to allow removing worktrees outside TEMPTREE_FOREST_DIR.
-Set TEMPTREE_PRUNE_FOREST=0 to keep TEMPTREE_FOREST_DIR even if it becomes empty.
+Worktrees under TEMPTREE_FOREST_DIR (default ~/forest) can be removed directly.
+Worktrees elsewhere require -f/--force.
+The main worktree of a repository cannot be removed.
+
+Options:
+  -f, --force   Allow removing worktrees outside TEMPTREE_FOREST_DIR
+  --dry-run     Show what would be done without doing it
+  -h, --help    Show this help
+
+Environment:
+  TEMPTREE_FOREST_DIR    Base directory for temp worktrees (default: ~/forest)
+  TEMPTREE_PRUNE_FOREST  Set to 0 to keep forest dir when empty (default: 1)
 USAGE
 }
 
 die() {
-  echo "$1" >&2
+  echo "error: $1" >&2
   exit 1
 }
 
-if [[ -n "${TEMPTREE_FOREST_DIR:-}" && "$forest_dir" != /* ]]; then
-  die "error: TEMPTREE_FOREST_DIR must be an absolute path"
-fi
+[[ -z "${TEMPTREE_FOREST_DIR:-}" || "$forest_dir" == /* ]] \
+  || die "TEMPTREE_FOREST_DIR must be an absolute path"
 
-force="false"
+force=false
+dry_run=false
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    -f|--force)
-      force="true"
-      shift
-      ;;
-    --)
-      shift
-      break
-      ;;
-    -*)
-      die "error: unknown option: $1"
-      ;;
-    *)
-      break
-      ;;
+    -h|--help) usage; exit 0 ;;
+    -f|--force) force=true; shift ;;
+    --dry-run) dry_run=true; shift ;;
+    --) shift; break ;;
+    -*) die "unknown option: $1" ;;
+    *) break ;;
   esac
 done
 
-[[ -z "${2:-}" ]] || die "error: too many arguments"
+[[ -z "${2:-}" ]] || die "too many arguments"
 
 target="${1:-$(pwd)}"
-if [[ ! -d "$target" ]]; then
-  die "error: not a directory: $target"
-fi
+[[ -d "$target" ]] || die "not a directory: $target"
 
 target="$(cd "$target" && pwd)"
 
-wt_root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" || die "error: not in a git worktree"
+wt_root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" \
+  || die "not in a git worktree: $target"
 
 # Refuse to remove the main worktree.
 # For main worktrees --git-dir is ".git"; for linked worktrees it's an absolute path.
 git_dir="$(git -C "$wt_root" rev-parse --git-dir)"
-[[ "$git_dir" != ".git" ]] || die "error: refusing to remove the main worktree: $wt_root"
+[[ "$git_dir" != ".git" ]] || die "refusing to remove the main worktree: $wt_root"
 
-case "$wt_root" in
-  "$forest_dir"/*) ;;
-  *)
-    if [[ "$force" != "true" ]]; then
-      die "error: not under $forest_dir: $wt_root"
-    fi
-    ;;
- esac
-
-common_dir="$(git -C "$wt_root" rev-parse --git-common-dir)"
-if [[ "$common_dir" != /* ]]; then
-  common_dir="$wt_root/$common_dir"
+# Resolve forest_dir for comparison (git returns physical paths)
+resolved_forest="$forest_dir"
+if [[ -d "$forest_dir" ]]; then
+  resolved_forest="$(cd "$forest_dir" && pwd -P)"
 fi
 
+case "$wt_root" in
+  "$resolved_forest"/*) ;;
+  *)
+    [[ "$force" == "true" ]] \
+      || die "not under $forest_dir: $wt_root (use --force to override)"
+    ;;
+esac
+
+common_dir="$(git -C "$wt_root" rev-parse --git-common-dir)"
+[[ "$common_dir" == /* ]] || common_dir="$wt_root/$common_dir"
+
 main_root="$(cd "$common_dir/.." && pwd)"
+
+if [[ "$dry_run" == "true" ]]; then
+  echo "would remove worktree: $wt_root (main repo: $main_root)" >&2
+  exit 0
+fi
 
 git -C "$main_root" worktree remove --force "$wt_root" >/dev/null
 

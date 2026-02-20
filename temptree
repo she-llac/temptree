@@ -15,6 +15,7 @@ included). The ref controls what git history is visible, not the file contents.
 Options:
   -n, --name <name>  Directory suffix (instead of a random number)
   -d, --dir <path>   Worktree directory (cannot combine with -n)
+  --dry-run           Show what would be done without doing it
   -h, --help          Show this help
 USAGE
 }
@@ -36,6 +37,7 @@ repo_name="$(basename "$main_worktree")"
 worktree_dir=""
 name=""
 ref="HEAD"
+dry_run=false
 positional=()
 
 while [[ $# -gt 0 ]]; do
@@ -47,6 +49,7 @@ while [[ $# -gt 0 ]]; do
     -d|--dir)
       [[ -n "${2:-}" ]] || die "--dir requires a path"
       worktree_dir="$2"; shift 2 ;;
+    --dry-run) dry_run=true; shift ;;
     -*) die "unknown option: $1" ;;
     *) positional+=("$1"); shift ;;
   esac
@@ -94,6 +97,11 @@ else
     [[ -d "$worktree_dir" && -z "$(ls -A "$worktree_dir")" ]] \
       || die "$worktree_dir exists and is not empty"
   fi
+fi
+
+if [[ "$dry_run" == "true" ]]; then
+  echo "would create worktree at $worktree_dir (ref: $ref, source: $repo_root)" >&2
+  exit 0
 fi
 
 if ! git -C "$repo_root" worktree add --detach "$worktree_dir" "$ref" >/dev/null 2>&1; then
