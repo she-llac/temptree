@@ -2,7 +2,7 @@
 temptree() {
   local dir
   dir="$(command temptree "$@")" || return
-  builtin cd "$dir" || return
+  [[ -d "$dir" ]] && builtin cd "$dir"
 }
 
 rmtree() {
@@ -16,7 +16,7 @@ rmtree() {
     esac
   done
   dir="$(command rmtree "$@")" || return
-  if [[ "$has_path" == false && -n "$dir" ]]; then
-    builtin cd "$dir" || return
+  if [[ "$has_path" == false && -d "$dir" ]]; then
+    builtin cd "$dir"
   fi
 }

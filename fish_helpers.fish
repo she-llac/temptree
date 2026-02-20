@@ -1,6 +1,6 @@
 function temptree
   set -l dir (command temptree $argv); or return
-  cd $dir; or return
+  test -d "$dir" && cd $dir
 end
 
 function rmtree
@@ -20,7 +20,7 @@ function rmtree
     end
   end
   set -l dir (command rmtree $argv); or return
-  if test "$has_path" = false -a -n "$dir"
-    cd $dir; or return
+  if test "$has_path" = false -a -d "$dir"
+    cd $dir
   end
 end
