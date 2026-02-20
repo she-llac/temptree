@@ -63,10 +63,11 @@ else
     *) die "error: too many arguments" ;;
   esac
 fi
+created=false
 completed=false
 
 cleanup() {
-  if [[ "$completed" == "false" && -n "${worktree_dir}" ]]; then
+  if [[ "$created" == "true" && "$completed" == "false" ]]; then
     git -C "$repo_root" worktree remove --force "$worktree_dir" >/dev/null 2>&1 || rm -rf "$worktree_dir"
   fi
 }
@@ -96,6 +97,7 @@ else
 fi
 
 git -C "$repo_root" worktree add --detach "$worktree_dir" "$ref" >/dev/null 2>&1
+created=true
 
 (
   shopt -s dotglob nullglob
