@@ -64,6 +64,10 @@ Both scripts support `-h`/`--help` for quick reference.
 1. Put the scripts on your PATH:
 
 ```sh
+# symlink (updates when you git pull)
+ln -s "$(pwd)/temptree" "$(pwd)/rmtree" /usr/local/bin/
+
+# or copy
 cp temptree rmtree /usr/local/bin/
 ```
 
