@@ -140,8 +140,8 @@ If creation fails partway through, the incomplete worktree is automatically clea
 - `temptree` only works inside a Git repository
 - `rmtree` refuses to delete worktrees outside the forest dir unless you pass `-f`/`--force`
 - `rmtree` refuses to delete the main worktree of a repository (even with `--force`)
-- Dotfiles (e.g., `.env`) are copied along with everything else
-- The `.git` directory is not copied (it's managed by Git's worktree mechanism)
+- Everything is copied: untracked files, ignored files, dotfiles, all of it
+- The `.git` directory is the only exception (it's managed by Git's worktree mechanism)
 
 ## See also
 
