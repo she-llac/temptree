@@ -42,10 +42,25 @@ remove_wt() {
     git -C "$dir" worktree remove --force "$1" >/dev/null 2>&1 || rm -rf "$1"
 }
 
+# Track extra temp dirs for cleanup
+tmp_dirs=()
+mktmp() {
+    local d
+    d=$(mktemp -d)
+    tmp_dirs+=("$d")
+    echo "$d"
+}
+
 # --- setup ---
 export TEMPTREE_FOREST_DIR
 TEMPTREE_FOREST_DIR=$(mktemp -d)
 dir=$(mktemp -d)
+
+cleanup_all() {
+    rm -rf "$dir" "$TEMPTREE_FOREST_DIR" "${tmp_dirs[@]}"
+}
+trap cleanup_all EXIT
+
 cd "$dir" || exit
 dir=$(pwd -P)  # resolve symlinks (macOS /var -> /private/var) for consistent comparisons
 git init -q
@@ -129,7 +144,7 @@ echo
 
 # === Test 6: custom directory (-d) ===
 echo -e "${BOLD}Test 6: custom directory (-d)${RESET}"
-custom_dir=$(mktemp -d)/custom-wt
+custom_dir=$(mktmp)/custom-wt
 wt=$("$TEMPTREE" -d "$custom_dir")
 assert_eq "created at custom path" "$custom_dir" "$wt"
 assert_eq "file copied" "modified" "$(cat "$wt/file.txt")"
@@ -138,7 +153,7 @@ echo
 
 # === Test 7: -d with pre-existing empty dir ===
 echo -e "${BOLD}Test 7: -d with empty dir${RESET}"
-empty_dir=$(mktemp -d)
+empty_dir=$(mktmp)
 wt=$("$TEMPTREE" -d "$empty_dir")
 assert_eq "created in empty dir" "$empty_dir" "$wt"
 assert_eq "file copied" "modified" "$(cat "$wt/file.txt")"
@@ -147,7 +162,7 @@ echo
 
 # === Test 8: -d with non-empty dir ===
 echo -e "${BOLD}Test 8: -d with non-empty dir${RESET}"
-nonempty_dir=$(mktemp -d)
+nonempty_dir=$(mktmp)
 echo "blocker" > "$nonempty_dir/existing.txt"
 output=$("$TEMPTREE" -d "$nonempty_dir" 2>&1)
 status=$?
@@ -219,7 +234,7 @@ echo
 
 # === Test 14: not in git repo ===
 echo -e "${BOLD}Test 14: not in git repo${RESET}"
-nogit_dir=$(mktemp -d)
+nogit_dir=$(mktmp)
 output=$(cd "$nogit_dir" && "$TEMPTREE" 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
@@ -236,12 +251,11 @@ echo
 
 # === Test 16: custom TEMPTREE_FOREST_DIR ===
 echo -e "${BOLD}Test 16: custom TEMPTREE_FOREST_DIR${RESET}"
-custom_forest=$(mktemp -d)
+custom_forest=$(mktmp)
 wt=$(TEMPTREE_FOREST_DIR="$custom_forest" "$TEMPTREE")
 assert_contains "under custom forest" "$custom_forest" "$wt"
 assert_eq "worktree exists" "yes" "$(test -d "$wt" && echo yes || echo no)"
 remove_wt "$wt"
-rmdir "$custom_forest" 2>/dev/null || true
 echo
 
 # === Test 17: --dry-run ===
@@ -360,7 +374,7 @@ echo
 
 # === Test 28: rmtree --force required outside forest ===
 echo -e "${BOLD}Test 28: rmtree --force required${RESET}"
-custom_dir=$(mktemp -d)/outside-wt
+custom_dir=$(mktmp)/outside-wt
 wt=$("$TEMPTREE" -d "$custom_dir")
 output=$("$RMTREE" "$wt" 2>&1)
 status=$?
@@ -406,7 +420,7 @@ echo
 
 # === Test 32: rmtree non-git directory ===
 echo -e "${BOLD}Test 32: rmtree non-git directory${RESET}"
-nogit_dir=$(mktemp -d)
+nogit_dir=$(mktmp)
 output=$("$RMTREE" -f "$nogit_dir" 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
@@ -427,7 +441,7 @@ echo
 
 # === Test 34: TEMPTREE_PRUNE_FOREST ===
 echo -e "${BOLD}Test 34: TEMPTREE_PRUNE_FOREST${RESET}"
-prune_forest=$(mktemp -d)
+prune_forest=$(mktmp)
 wt=$(TEMPTREE_FOREST_DIR="$prune_forest" "$TEMPTREE")
 TEMPTREE_PRUNE_FOREST=0 TEMPTREE_FOREST_DIR="$prune_forest" "$RMTREE" "$wt" >/dev/null
 assert_eq "forest preserved with PRUNE=0" "yes" "$(test -d "$prune_forest" && echo yes || echo no)"
@@ -475,7 +489,7 @@ echo
 
 # === Test 39: positional dir form (backward compat) ===
 echo -e "${BOLD}Test 39: positional dir form${RESET}"
-pos_dir=$(mktemp -d)/pos-wt
+pos_dir=$(mktmp)/pos-wt
 wt=$("$TEMPTREE" HEAD "$pos_dir")
 assert_eq "created at positional path" "$pos_dir" "$wt"
 assert_eq "file copied" "v3" "$(cat "$wt/file.txt")"
@@ -545,17 +559,16 @@ echo
 
 # === Test 46: empty working tree (no files besides .git) ===
 echo -e "${BOLD}Test 46: empty working tree${RESET}"
-empty_repo=$(mktemp -d)
+empty_repo=$(mktmp)
 git -C "$empty_repo" init -q
 git -C "$empty_repo" commit --allow-empty -q -m "empty"
-empty_forest=$(mktemp -d)
+empty_forest=$(mktmp)
 wt=$(cd "$empty_repo" && TEMPTREE_FOREST_DIR="$empty_forest" "$TEMPTREE")
 assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
 # Only .git should exist
 wt_files=$(ls -A "$wt")
 assert_eq "only .git in worktree" ".git" "$wt_files"
 git -C "$empty_repo" worktree remove --force "$wt" 2>/dev/null
-rm -rf "$empty_repo" "$empty_forest"
 echo
 
 # === Test 47: symlink-to-directory preserved ===
@@ -622,7 +635,7 @@ echo
 
 # === Test 52: --dry-run with -d ===
 echo -e "${BOLD}Test 52: temptree --dry-run with -d${RESET}"
-custom_dry_dir=$(mktemp -d)/dry-custom
+custom_dry_dir=$(mktmp)/dry-custom
 dry_output=$("$TEMPTREE" --dry-run -d "$custom_dry_dir" 2>&1)
 dry_status=$?
 assert_eq "exits zero" "0" "$dry_status"
@@ -641,7 +654,7 @@ echo
 
 # === Test 54: rmtree with --force and no path (current dir outside forest) ===
 echo -e "${BOLD}Test 54: rmtree --force no path${RESET}"
-outside_dir=$(mktemp -d)/outside-force-wt
+outside_dir=$(mktmp)/outside-force-wt
 wt=$("$TEMPTREE" -d "$outside_dir")
 main=$(cd "$wt" && "$RMTREE" --force)
 assert_eq "returns main root" "$dir" "$main"
@@ -650,7 +663,7 @@ echo
 
 # === Test 55: rmtree -f no path (current dir outside forest) ===
 echo -e "${BOLD}Test 55: rmtree -f no path${RESET}"
-outside_dir2=$(mktemp -d)/outside-f-wt
+outside_dir2=$(mktmp)/outside-f-wt
 wt=$("$TEMPTREE" -d "$outside_dir2")
 main=$(cd "$wt" && "$RMTREE" -f)
 assert_eq "returns main root" "$dir" "$main"
@@ -659,5 +672,4 @@ echo
 
 # --- results ---
 echo -e "${BOLD}Results: ${GREEN}$pass passed${RESET}, ${RED}$fail failed${RESET}"
-rm -rf "$dir" "$TEMPTREE_FOREST_DIR"
 exit "$fail"
