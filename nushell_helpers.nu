@@ -4,8 +4,11 @@ def --env temptree [...args: string] {
 }
 
 def --env rmtree [...args: string] {
+  let has_path = ($args | any {|a|
+    not ($a starts-with "-") and $a != "--force" and $a != "-f" and $a != "--dry-run"
+  })
   let dir = (^rmtree ...$args)
-  if ($args | is-empty) {
+  if not $has_path {
     cd $dir
   }
 }

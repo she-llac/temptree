@@ -75,10 +75,11 @@ case "$wt_root" in
     ;;
 esac
 
-common_dir="$(git -C "$wt_root" rev-parse --git-common-dir)"
-[[ "$common_dir" == /* ]] || common_dir="$wt_root/$common_dir"
-
-main_root="$(cd "$common_dir/.." && pwd)"
+# Find the main worktree root.
+# We cannot just do "$common_dir/.." because for submodules the git-common-dir
+# lives inside the parent repo's .git/modules/ tree, not next to the worktree.
+main_root="$(git -C "$wt_root" worktree list --porcelain | head -1)"
+main_root="${main_root#worktree }"
 
 if [[ "$dry_run" == "true" ]]; then
   echo "would remove worktree: $wt_root (main repo: $main_root)" >&2

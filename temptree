@@ -13,8 +13,8 @@ file contents are copied from the current working tree (uncommitted changes
 included). The ref controls what git history is visible, not the file contents.
 
 Options:
-  -n, --name <name>  Directory suffix (instead of a random number)
-  -d, --dir <path>   Worktree directory (cannot combine with -n)
+  -n, --name <name>   Directory suffix (instead of a random number)
+  -d, --dir <path>    Worktree directory (cannot combine with -n)
   --dry-run           Show what would be done without doing it
   -h, --help          Show this help
 USAGE
@@ -50,10 +50,12 @@ while [[ $# -gt 0 ]]; do
       [[ -n "${2:-}" ]] || die "--dir requires a path"
       worktree_dir="$2"; shift 2 ;;
     --dry-run) dry_run=true; shift ;;
+    --) shift; break ;;
     -*) die "unknown option: $1" ;;
     *) positional+=("$1"); shift ;;
   esac
 done
+positional+=("$@")
 
 case "${#positional[@]}" in
   0) ;;
@@ -68,6 +70,9 @@ esac
 
 [[ -z "$name" || -z "$worktree_dir" ]] \
   || die "--name and --dir cannot be used together"
+
+[[ -z "$name" || "$name" != */* ]] \
+  || die "name must not contain '/'"
 
 created=false
 completed=false
@@ -86,16 +91,22 @@ if [[ -z "$worktree_dir" ]]; then
     worktree_dir="$forest_dir/${repo_name}-${name}"
     [[ ! -e "$worktree_dir" ]] || die "$worktree_dir already exists"
   else
+    attempts=0
     while :; do
       rand="$(printf '%04d' $((RANDOM % 10000)))"
       worktree_dir="$forest_dir/${repo_name}-${rand}"
       [[ -e "$worktree_dir" ]] || break
+      ((attempts++))
+      [[ "$attempts" -lt 100 ]] || die "could not find a free name after $attempts attempts"
     done
   fi
 else
   if [[ -e "$worktree_dir" ]]; then
-    [[ -d "$worktree_dir" && -z "$(ls -A "$worktree_dir")" ]] \
-      || die "$worktree_dir exists and is not empty"
+    if [[ ! -d "$worktree_dir" ]]; then
+      die "$worktree_dir exists and is not a directory"
+    elif [[ -n "$(ls -A "$worktree_dir")" ]]; then
+      die "$worktree_dir exists and is not empty"
+    fi
   fi
 fi
 
