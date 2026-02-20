@@ -146,6 +146,14 @@ If creation fails partway through, the incomplete worktree is automatically clea
 - Everything is copied: untracked files, ignored files, dotfiles, all of it
 - The `.git` directory is the only exception (it's managed by Git's worktree mechanism)
 
+## Testing
+
+55 tests (147 assertions) covering both scripts end-to-end:
+
+```sh
+bash test.sh
+```
+
 ## See also
 
 - [git-snapshot](https://github.com/she-llac/git-snapshot) - zero-side-effect working tree snapshots for Git
