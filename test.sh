@@ -684,6 +684,247 @@ rmdir "$dir/deep" 2>/dev/null
 cd "$dir" || exit
 echo
 
+# === Test 63: cleanup on partial failure ===
+echo -e "${BOLD}Test 63: cleanup on partial failure${RESET}"
+echo "nope" > "$dir/unreadable.txt"
+chmod 000 "$dir/unreadable.txt"
+fail_forest=$(mktmp)
+output=$(TEMPTREE_FOREST_DIR="$fail_forest" "$TEMPTREE" 2>&1)
+status=$?
+assert_eq "fails" "1" "$status"
+leftover=$(find "$fail_forest" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+assert_eq "partial worktree cleaned up" "0" "$leftover"
+chmod 644 "$dir/unreadable.txt"
+rm -f "$dir/unreadable.txt"
+echo
+
+# === Test 64: git worktree add failure ===
+echo -e "${BOLD}Test 64: git worktree add failure${RESET}"
+fail_repo=$(mktmp)
+git -C "$fail_repo" init -q
+git -C "$fail_repo" commit --allow-empty -q -m "init"
+chmod 555 "$fail_repo/.git"
+fail_forest2=$(mktmp)
+output=$(cd "$fail_repo" && TEMPTREE_FOREST_DIR="$fail_forest2" "$TEMPTREE" 2>&1)
+status=$?
+chmod 755 "$fail_repo/.git"
+assert_eq "fails" "1" "$status"
+assert_contains "error message" "failed to create worktree" "$output"
+echo
+
+# === Test 65: random name exhaustion ===
+echo -e "${BOLD}Test 65: random name exhaustion${RESET}"
+exhaust_forest=$(mktmp)
+repo_name_ex=$(basename "$(git worktree list --porcelain | head -1 | sed 's/^worktree //')")
+(cd "$exhaust_forest" && mkdir "$repo_name_ex-"{0000..9999})
+output=$(TEMPTREE_FOREST_DIR="$exhaust_forest" "$TEMPTREE" 2>&1)
+status=$?
+assert_eq "fails" "1" "$status"
+# All 10000 names occupied, so nothing should have been created
+leftover=$(git worktree list --porcelain | grep -c "^worktree $exhaust_forest" || true)
+assert_eq "no worktree created" "0" "$leftover"
+echo
+
+# === Test 66: rmtree relative TEMPTREE_FOREST_DIR ===
+echo -e "${BOLD}Test 66: rmtree relative TEMPTREE_FOREST_DIR${RESET}"
+output=$(TEMPTREE_FOREST_DIR="relative/path" "$RMTREE" 2>&1)
+status=$?
+assert_eq "fails" "1" "$status"
+assert_contains "error message" "absolute path" "$output"
+echo
+
+# === Test 67: rmtree --dry-run without path ===
+echo -e "${BOLD}Test 67: rmtree --dry-run without path${RESET}"
+wt=$("$TEMPTREE")
+dry_output=$(cd "$wt" && "$RMTREE" --dry-run 2>&1)
+dry_status=$?
+assert_eq "exits zero" "0" "$dry_status"
+assert_contains "shows worktree" "$wt" "$dry_output"
+assert_contains "shows main repo" "$dir" "$dry_output"
+assert_eq "worktree NOT removed" "yes" "$(test -d "$wt" && echo yes || echo no)"
+remove_wt "$wt"
+echo
+
+# === Test 68: rmtree --dry-run --force ===
+echo -e "${BOLD}Test 68: rmtree --dry-run --force${RESET}"
+outside_dry=$(mktmp)/outside-dry-wt
+wt=$("$TEMPTREE" -d "$outside_dry")
+dry_output=$("$RMTREE" --dry-run --force "$wt" 2>&1)
+dry_status=$?
+assert_eq "exits zero" "0" "$dry_status"
+assert_contains "shows worktree" "$wt" "$dry_output"
+assert_eq "worktree NOT removed" "yes" "$(test -d "$wt" && echo yes || echo no)"
+remove_wt "$wt"
+echo
+
+# === Test 69: rmtree --force inside forest ===
+echo -e "${BOLD}Test 69: rmtree --force inside forest${RESET}"
+wt=$("$TEMPTREE")
+output=$("$RMTREE" --force "$wt" 2>&1)
+status=$?
+assert_eq "exits zero" "0" "$status"
+assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
+echo
+
+# === Test 70: empty string -n and -d ===
+echo -e "${BOLD}Test 70: empty string -n and -d${RESET}"
+output=$("$TEMPTREE" -n "" 2>&1)
+status=$?
+assert_eq "-n '' fails" "1" "$status"
+assert_contains "-n '' error" "--name requires a value" "$output"
+output=$("$TEMPTREE" -d "" 2>&1)
+status=$?
+assert_eq "-d '' fails" "1" "$status"
+assert_contains "-d '' error" "--dir requires a path" "$output"
+echo
+
+# === Test 71: gitignored files are copied ===
+echo -e "${BOLD}Test 71: gitignored files are copied${RESET}"
+echo "*.log" > "$dir/.gitignore"
+echo "should be ignored" > "$dir/debug.log"
+git -C "$dir" add .gitignore && git -C "$dir" commit -q -m "add gitignore"
+wt=$("$TEMPTREE")
+assert_eq "ignored file copied" "should be ignored" "$(cat "$wt/debug.log")"
+assert_eq ".gitignore copied" "*.log" "$(cat "$wt/.gitignore")"
+gi_status=$(git -C "$wt" status --porcelain --ignored debug.log 2>/dev/null)
+assert_contains "file is ignored in worktree" "!!" "$gi_status"
+rm -f "$dir/.gitignore" "$dir/debug.log"
+remove_wt "$wt"
+echo
+
+# === Test 72: multiple worktrees unique names ===
+echo -e "${BOLD}Test 72: multiple worktrees unique names${RESET}"
+multi_forest=$(mktmp)
+wt1=$(TEMPTREE_FOREST_DIR="$multi_forest" "$TEMPTREE")
+wt2=$(TEMPTREE_FOREST_DIR="$multi_forest" "$TEMPTREE")
+wt3=$(TEMPTREE_FOREST_DIR="$multi_forest" "$TEMPTREE")
+assert_eq "wt1 exists" "yes" "$(test -d "$wt1" && echo yes || echo no)"
+assert_eq "wt2 exists" "yes" "$(test -d "$wt2" && echo yes || echo no)"
+assert_eq "wt3 exists" "yes" "$(test -d "$wt3" && echo yes || echo no)"
+assert_eq "wt1 != wt2" "yes" "$([[ "$wt1" != "$wt2" ]] && echo yes || echo no)"
+assert_eq "wt2 != wt3" "yes" "$([[ "$wt2" != "$wt3" ]] && echo yes || echo no)"
+assert_eq "wt1 != wt3" "yes" "$([[ "$wt1" != "$wt3" ]] && echo yes || echo no)"
+remove_wt "$wt1"; remove_wt "$wt2"; remove_wt "$wt3"
+echo
+
+# === Test 73: -d parent directory doesn't exist ===
+echo -e "${BOLD}Test 73: -d parent doesn't exist${RESET}"
+parent_base=$(mktmp)
+wt=$("$TEMPTREE" -d "$parent_base/nonexistent/wt")
+assert_eq "creates with missing parent" "yes" "$(test -d "$wt" && echo yes || echo no)"
+assert_eq "file copied" "v3" "$(cat "$wt/file.txt")"
+remove_wt "$wt"
+echo
+
+# === Test 74: rmtree with symlinked forest dir ===
+echo -e "${BOLD}Test 74: rmtree with symlinked forest dir${RESET}"
+real_forest=$(mktmp)
+link_parent=$(mktmp)
+symlink_forest="$link_parent/forest-link"
+ln -s "$real_forest" "$symlink_forest"
+wt=$(TEMPTREE_FOREST_DIR="$symlink_forest" "$TEMPTREE")
+assert_eq "creates worktree" "yes" "$(test -d "$wt" && echo yes || echo no)"
+TEMPTREE_FOREST_DIR="$symlink_forest" "$RMTREE" "$wt"
+assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
+echo
+
+# === Test 75: temptree stdout is clean ===
+echo -e "${BOLD}Test 75: temptree stdout is clean${RESET}"
+output=$("$TEMPTREE")
+line_count=$(printf '%s\n' "$output" | wc -l | tr -d ' ')
+assert_eq "exactly one line" "1" "$line_count"
+assert_eq "output is a directory" "yes" "$(test -d "$output" && echo yes || echo no)"
+remove_wt "$output"
+echo
+
+# === Test 76: special characters in filenames ===
+echo -e "${BOLD}Test 76: special characters in filenames${RESET}"
+echo "star" > "$dir/file*.txt"
+echo "question" > "$dir/file?.txt"
+echo "bracket" > "$dir/file[1].txt"
+mkdir -p "$dir/dir with 'quotes'"
+echo "quoted" > "$dir/dir with 'quotes'/inner.txt"
+wt=$("$TEMPTREE")
+assert_eq "glob star copied" "star" "$(cat "$wt/file*.txt")"
+assert_eq "glob question copied" "question" "$(cat "$wt/file?.txt")"
+assert_eq "glob bracket copied" "bracket" "$(cat "$wt/file[1].txt")"
+assert_eq "quoted dir copied" "quoted" "$(cat "$wt/dir with 'quotes'/inner.txt")"
+rm -rf "$dir/file*.txt" "$dir/file?.txt" "$dir/file[1].txt" "$dir/dir with 'quotes'"
+remove_wt "$wt"
+echo
+
+# === Test 77: rmtree with trailing slash ===
+echo -e "${BOLD}Test 77: rmtree with trailing slash${RESET}"
+wt=$("$TEMPTREE")
+output=$("$RMTREE" "$wt/" 2>&1)
+status=$?
+assert_eq "exits zero" "0" "$status"
+assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
+echo
+
+# === Test 78: shell helper temptree cd ===
+echo -e "${BOLD}Test 78: shell helper temptree cd${RESET}"
+helper_dir="$(cd "$(dirname "$TEMPTREE")" && pwd)"
+helper_cwd=$(
+  export PATH="$helper_dir:$PATH"
+  source "$helper_dir/shell_helpers.sh"
+  export TEMPTREE_FOREST_DIR
+  cd "$dir"
+  temptree
+  pwd
+)
+assert_contains "cd into worktree" "$TEMPTREE_FOREST_DIR" "$helper_cwd"
+assert_eq "cwd is a directory" "yes" "$(test -d "$helper_cwd" && echo yes || echo no)"
+remove_wt "$helper_cwd"
+echo
+
+# === Test 79: shell helper rmtree cd back ===
+echo -e "${BOLD}Test 79: shell helper rmtree cd back${RESET}"
+wt=$("$TEMPTREE")
+main_cwd=$(
+  export PATH="$helper_dir:$PATH"
+  source "$helper_dir/shell_helpers.sh"
+  export TEMPTREE_FOREST_DIR
+  cd "$wt"
+  rmtree
+  pwd -P
+)
+assert_eq "cd back to main repo" "$dir" "$main_cwd"
+assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
+echo
+
+# === Test 80: shell helper error propagation ===
+echo -e "${BOLD}Test 80: shell helper error propagation${RESET}"
+output=$(
+  export PATH="$helper_dir:$PATH"
+  source "$helper_dir/shell_helpers.sh"
+  export TEMPTREE_FOREST_DIR
+  cd "$dir"
+  temptree -n "foo/bar" 2>/dev/null
+  echo "$?"
+  pwd -P
+)
+helper_status=$(echo "$output" | head -1)
+helper_cwd=$(echo "$output" | tail -1)
+assert_eq "error status propagated" "1" "$helper_status"
+assert_eq "cwd unchanged on error" "$dir" "$helper_cwd"
+echo
+
+# === Test 81: shell helper rmtree no cd with path ===
+echo -e "${BOLD}Test 81: shell helper rmtree no cd with path${RESET}"
+wt=$("$TEMPTREE")
+result_cwd=$(
+  export PATH="$helper_dir:$PATH"
+  source "$helper_dir/shell_helpers.sh"
+  export TEMPTREE_FOREST_DIR
+  cd "$dir"
+  rmtree "$wt"
+  pwd -P
+)
+assert_eq "stays in original dir" "$dir" "$result_cwd"
+assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
+echo
+
 # --- results ---
 echo -e "${BOLD}Results: ${GREEN}$pass passed${RESET}, ${RED}$fail failed${RESET}"
 exit "$fail"
