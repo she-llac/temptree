@@ -21,6 +21,13 @@ temptree
 # => ~/forest/myrepo-2137
 ```
 
+Name the worktree instead of getting a random number:
+
+```sh
+temptree -n experiment
+# => ~/forest/myrepo-experiment
+```
+
 Specify a directory:
 
 ```sh
