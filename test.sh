@@ -183,28 +183,11 @@ assert_eq "fails (reverse order)" "1" "$status"
 assert_contains "error message (reverse)" "cannot be used together" "$output"
 echo
 
-# === Test 10: ref argument ===
-echo -e "${BOLD}Test 10: ref argument${RESET}"
+# === Test 10: commits for later tests ===
+echo -e "${BOLD}Test 10: setup commits${RESET}"
 git add -A && git commit -q -m "second commit"
 echo "v3" > file.txt && git add . && git commit -q -m "third commit"
-wt=$("$TEMPTREE" HEAD~1)
-wt_commit=$(git -C "$wt" rev-parse HEAD)
-expected_commit=$(git rev-parse HEAD~1)
-assert_eq "worktree at correct ref" "$expected_commit" "$wt_commit"
-# Files come from current working tree, not the ref
-assert_eq "file content from worktree (not ref)" "v3" "$(cat "$wt/file.txt")"
-remove_wt "$wt"
-echo
-
-# === Test 11: invalid ref ===
-echo -e "${BOLD}Test 11: invalid ref${RESET}"
-output=$("$TEMPTREE" nonexistent-branch 2>&1)
-status=$?
-assert_eq "fails" "1" "$status"
-assert_contains "error mentions ref" "valid ref" "$output"
-# No leftover worktree in forest
-leftover=$(find "$TEMPTREE_FOREST_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
-assert_eq "no leftover dirs" "0" "$leftover"
+assert_eq "file at v3" "v3" "$(cat file.txt)"
 echo
 
 # === Test 12: from subdirectory ===
@@ -264,7 +247,6 @@ dry_output=$("$TEMPTREE" --dry-run 2>&1)
 dry_status=$?
 assert_eq "exits zero" "0" "$dry_status"
 assert_contains "shows forest dir" "$TEMPTREE_FOREST_DIR" "$dry_output"
-assert_contains "shows ref" "HEAD" "$dry_output"
 assert_contains "shows source" "$dir" "$dry_output"
 # Nothing actually created
 leftover=$(find "$TEMPTREE_FOREST_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
@@ -281,11 +263,10 @@ echo
 
 # === Test 19: --dry-run with options ===
 echo -e "${BOLD}Test 19: --dry-run with options${RESET}"
-dry_output=$("$TEMPTREE" --dry-run -n "drytest" HEAD~1 2>&1)
+dry_output=$("$TEMPTREE" --dry-run -n "drytest" 2>&1)
 dry_status=$?
 assert_eq "exits zero" "0" "$dry_status"
 assert_contains "shows name" "drytest" "$dry_output"
-assert_contains "shows ref" "HEAD~1" "$dry_output"
 echo
 
 # === Test 20: help ===
@@ -307,23 +288,22 @@ assert_eq "fails" "1" "$status"
 assert_contains "error message" "unknown option" "$output"
 echo
 
-# === Test 22: too many arguments ===
-echo -e "${BOLD}Test 22: temptree too many args${RESET}"
-output=$("$TEMPTREE" a b c 2>&1)
+# === Test 22: unexpected arguments ===
+echo -e "${BOLD}Test 22: temptree unexpected args${RESET}"
+output=$("$TEMPTREE" somearg 2>&1)
 status=$?
 assert_eq "fails" "1" "$status"
-assert_contains "error message" "too many arguments" "$output"
+assert_contains "error message" "unexpected argument" "$output"
 echo
 
 # === Test 23: option order independence ===
 echo -e "${BOLD}Test 23: option order independence${RESET}"
-# -n after ref
-wt=$("$TEMPTREE" HEAD -n "ordertest")
-assert_contains "name applied" "ordertest" "$wt"
-remove_wt "$wt"
+# -n before --dry-run
+dry_output=$("$TEMPTREE" -n "order1" --dry-run 2>&1)
+assert_contains "name before dry-run" "order1" "$dry_output"
 # --dry-run before -n
 dry_output=$("$TEMPTREE" --dry-run -n "order2" 2>&1)
-assert_contains "dry-run works" "order2" "$dry_output"
+assert_contains "dry-run before name" "order2" "$dry_output"
 echo
 
 # === Test 24: symlinks preserved ===
@@ -484,44 +464,19 @@ assert_eq "fails" "1" "$status"
 assert_contains "error message" "too many arguments" "$output"
 echo
 
-# === Test 39: cleanup on failed copy does not leak worktree ===
-echo -e "${BOLD}Test 39: cleanup on failure${RESET}"
-# Make repo_root temporarily unreadable to break the copy step
-# (We can't easily do this without root, so test the invalid-ref case instead,
-# which verifies the cleanup trap doesn't leave partial state)
-before=$(git worktree list --porcelain | grep -c '^worktree')
-"$TEMPTREE" nonexistent-ref 2>/dev/null || true
-after=$(git worktree list --porcelain | grep -c '^worktree')
-assert_eq "no stale worktree entries" "$before" "$after"
-echo
 
-# === Test 40: positional dir form (backward compat) ===
-echo -e "${BOLD}Test 40: positional dir form${RESET}"
-pos_dir=$(mktmp)/pos-wt
-wt=$("$TEMPTREE" HEAD "$pos_dir")
-assert_eq "created at positional path" "$pos_dir" "$wt"
-assert_eq "file copied" "v3" "$(cat "$wt/file.txt")"
-remove_wt "$wt"
-echo
-
-# === Test 41: positional dir conflicts with -d ===
-echo -e "${BOLD}Test 41: positional dir + -d conflict${RESET}"
-output=$("$TEMPTREE" -d /tmp/a HEAD /tmp/b 2>&1)
-status=$?
-assert_eq "fails" "1" "$status"
-assert_contains "error message" "cannot specify directory both" "$output"
-echo
 
 # === Test 42: -- separator in temptree ===
 echo -e "${BOLD}Test 42: temptree -- separator${RESET}"
-wt=$("$TEMPTREE" -- HEAD)
-assert_eq "creates with -- before ref" "yes" "$(test -d "$wt" && echo yes || echo no)"
-assert_eq "file copied" "v3" "$(cat "$wt/file.txt")"
-remove_wt "$wt"
-# -- with no ref defaults to HEAD
 wt=$("$TEMPTREE" -n "dashtest" --)
+assert_eq "creates with trailing --" "yes" "$(test -d "$wt" && echo yes || echo no)"
 assert_contains "name applied with --" "dashtest" "$wt"
 remove_wt "$wt"
+# -- with arg after it errors
+output=$("$TEMPTREE" -- somearg 2>&1)
+status=$?
+assert_eq "arg after -- rejected" "1" "$status"
+assert_contains "error message" "unexpected argument" "$output"
 echo
 
 # === Test 43: -- separator in rmtree ===
@@ -689,16 +644,7 @@ assert_eq "fails" "1" "$status"
 assert_contains "error message" "not inside a git repository" "$output"
 echo
 
-# === Test 58: tag ref ===
-echo -e "${BOLD}Test 58: tag ref${RESET}"
-git tag v1.0-test HEAD~1
-wt=$("$TEMPTREE" v1.0-test)
-wt_commit=$(git -C "$wt" rev-parse HEAD)
-expected_commit=$(git rev-parse v1.0-test)
-assert_eq "worktree at tag ref" "$expected_commit" "$wt_commit"
-assert_eq "file content from worktree" "v3" "$(cat "$wt/file.txt")"
-remove_wt "$wt"
-echo
+
 
 # === Test 59: relative -d path from subdirectory ===
 echo -e "${BOLD}Test 59: relative -d from subdirectory${RESET}"

@@ -5,12 +5,10 @@ forest_dir="${TEMPTREE_FOREST_DIR:-$HOME/forest}"
 
 usage() {
   cat <<'USAGE'
-Usage: temptree [options] [ref]
+Usage: temptree [options]
 
-Creates a temporary git worktree and COW-copies the entire working tree into it.
-If ref is omitted, HEAD is used. The worktree is detached at the given ref, then
-file contents are copied from the current working tree (uncommitted changes
-included). The ref controls what git history is visible, not the file contents.
+Creates a temporary git worktree at HEAD and COW-copies the entire working tree
+into it (uncommitted changes included). Your main checkout stays untouched.
 
 Options:
   -n, --name <name>   Directory suffix (instead of a random number)
@@ -36,9 +34,7 @@ repo_name="$(basename "$main_worktree")"
 
 worktree_dir=""
 name=""
-ref="HEAD"
 dry_run=false
-positional=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -52,21 +48,10 @@ while [[ $# -gt 0 ]]; do
     --dry-run) dry_run=true; shift ;;
     --) shift; break ;;
     -*) die "unknown option: $1" ;;
-    *) positional+=("$1"); shift ;;
+    *) die "unexpected argument: $1" ;;
   esac
 done
-positional+=("$@")
-
-case "${#positional[@]}" in
-  0) ;;
-  1) ref="${positional[0]}" ;;
-  2)
-    ref="${positional[0]}"
-    [[ -z "$worktree_dir" ]] || die "cannot specify directory both as argument and with --dir"
-    worktree_dir="${positional[1]}"
-    ;;
-  *) die "too many arguments" ;;
-esac
+[[ $# -eq 0 ]] || die "unexpected argument: $1"
 
 [[ -z "$name" || -z "$worktree_dir" ]] \
   || die "--name and --dir cannot be used together"
@@ -115,12 +100,12 @@ else
 fi
 
 if [[ "$dry_run" == "true" ]]; then
-  echo "would create worktree at $worktree_dir (ref: $ref, source: $repo_root)" >&2
+  echo "would create worktree at $worktree_dir (source: $repo_root)" >&2
   exit 0
 fi
 
-if ! git -C "$repo_root" worktree add --detach -- "$worktree_dir" "$ref" >/dev/null 2>&1; then
-  die "failed to create worktree (is '$ref' a valid ref?)"
+if ! git -C "$repo_root" worktree add --detach -- "$worktree_dir" HEAD >/dev/null 2>&1; then
+  die "failed to create worktree"
 fi
 created=true
 

@@ -21,24 +21,7 @@ temptree
 # => ~/forest/myrepo-2137
 ```
 
-Create at a specific ref:
-
-```sh
-temptree my-branch
-```
-
-> **Note:** The ref controls what git history is visible in the worktree, not
-> the file contents. Files are always copied from your current working tree.
-> This means `temptree my-branch` gives you your uncommitted work with
-> `git log` showing `my-branch`.
-
-Create at a specific ref in a specific directory:
-
-```sh
-temptree my-branch /tmp/my-wt
-```
-
-Specify only a directory (ref defaults to `HEAD`):
+Specify a directory:
 
 ```sh
 temptree -d /tmp/my-wt
@@ -68,7 +51,7 @@ Preview what either command would do without making changes:
 
 ```sh
 temptree --dry-run
-temptree --dry-run -n experiment HEAD~1
+temptree --dry-run -n experiment
 rmtree --dry-run ~/forest/myrepo-2137
 ```
 
@@ -126,7 +109,7 @@ open nushell_helpers.nu | save --append $nu.config-path
 
 ## How it works
 
-1. `temptree` creates a detached Git worktree at the specified ref
+1. `temptree` creates a detached Git worktree at HEAD
 2. It then copies your entire working tree (including uncommitted changes and dotfiles) into the worktree, using CoW when available
 3. If no directory was specified, the worktree is named `<repo>-<random>` under the forest dir (e.g., `~/forest/myproject-0042`)
 4. `rmtree` removes the worktree via `git worktree remove` and cleans up
@@ -148,7 +131,7 @@ If creation fails partway through, the incomplete worktree is automatically clea
 
 ## Testing
 
-62 tests (161 assertions) covering both scripts end-to-end:
+57 tests (149 assertions) covering both scripts end-to-end:
 
 ```sh
 bash test.sh
