@@ -347,8 +347,8 @@ echo
 # === Test 27: rmtree by path ===
 echo -e "${BOLD}Test 27: rmtree by path${RESET}"
 wt=$("$TEMPTREE")
-main=$("$RMTREE" "$wt")
-assert_eq "returns main root" "$dir" "$main"
+output=$("$RMTREE" "$wt")
+assert_eq "no output with path" "" "$output"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 echo
 
@@ -370,8 +370,7 @@ assert_eq "fails without --force" "1" "$status"
 assert_contains "error mentions force" "use --force" "$output"
 assert_eq "worktree still exists" "yes" "$(test -d "$wt" && echo yes || echo no)"
 # Now with --force
-main=$("$RMTREE" -f "$wt")
-assert_eq "succeeds with --force" "$dir" "$main"
+"$RMTREE" -f "$wt"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 echo
 
@@ -482,8 +481,7 @@ echo
 # === Test 43: -- separator in rmtree ===
 echo -e "${BOLD}Test 43: rmtree -- separator${RESET}"
 wt=$("$TEMPTREE")
-main=$("$RMTREE" -- "$wt")
-assert_eq "returns main root" "$dir" "$main"
+"$RMTREE" -- "$wt"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
 echo
 
@@ -610,9 +608,9 @@ echo
 echo -e "${BOLD}Test 54: rmtree with relative path${RESET}"
 wt=$("$TEMPTREE")
 wt_name=$(basename "$wt")
-main=$(cd "$TEMPTREE_FOREST_DIR" && "$RMTREE" "./$wt_name")
-assert_eq "returns main root" "$dir" "$main"
+cd "$TEMPTREE_FOREST_DIR" && "$RMTREE" "./$wt_name"
 assert_eq "worktree removed" "no" "$(test -d "$wt" && echo yes || echo no)"
+cd "$dir" || exit
 echo
 
 # === Test 55: rmtree with --force and no path (current dir outside forest) ===

@@ -93,12 +93,8 @@ open nushell_helpers.nu | save --append $nu.config-path
 
 | Action | Without helpers | With helpers |
 |--------|-----------------|--------------|
-| `temptree` | Prints new worktree path | `cd`s into it (no output) |
-| `rmtree` (no path) | Prints main repo path | `cd`s back (no output) |
-| `rmtree <path>` | Prints main repo path | No `cd` (no output) |
-
-> `rmtree -f` (flags but no path) is treated the same as no-args — the helpers
-> `cd` back when no path operand is given.
+| `temptree` | Prints new worktree path | `cd`s into it |
+| `rmtree` | Prints main repo path | `cd`s back |
 
 ## Environment variables
 
@@ -131,7 +127,7 @@ If creation fails partway through, the incomplete worktree is automatically clea
 
 ## Testing
 
-57 tests (149 assertions) covering both scripts end-to-end:
+57 tests (146 assertions) covering both scripts end-to-end:
 
 ```sh
 bash test.sh

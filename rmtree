@@ -48,6 +48,11 @@ done
 
 [[ -z "${2:-}" ]] || die "too many arguments"
 
+has_path=false
+if [[ -n "${1:-}" ]]; then
+  has_path=true
+fi
+
 target="${1:-$(pwd)}"
 [[ -d "$target" ]] || die "not a directory: $target"
 
@@ -92,4 +97,6 @@ if [[ "${TEMPTREE_PRUNE_FOREST:-1}" != "0" ]]; then
   rmdir "$forest_dir" >/dev/null 2>&1 || true
 fi
 
-printf '%s\n' "$main_root"
+if [[ "$has_path" == false ]]; then
+  printf '%s\n' "$main_root"
+fi
