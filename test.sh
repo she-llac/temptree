@@ -37,6 +37,14 @@ assert_contains() {
     fi
 }
 
+# Cross-platform helpers (GNU first, BSD fallback)
+file_hash() {
+    md5sum "$1" 2>/dev/null | cut -d' ' -f1 || md5 -q "$1"
+}
+file_mode() {
+    stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"
+}
+
 # Remove a worktree (for test cleanup — does not depend on rmtree)
 remove_wt() {
     git -C "$dir" worktree remove --force "$1" >/dev/null 2>&1 || rm -rf "$1"
@@ -321,9 +329,9 @@ echo
 # === Test 25: binary files ===
 echo -e "${BOLD}Test 25: binary files${RESET}"
 dd if=/dev/urandom of=binary.bin bs=1024 count=64 2>/dev/null
-expected_md5=$(md5 -q binary.bin)
+expected_md5=$(file_hash binary.bin)
 wt=$("$TEMPTREE")
-actual_md5=$(md5 -q "$wt/binary.bin")
+actual_md5=$(file_hash "$wt/binary.bin")
 assert_eq "binary roundtrip" "$expected_md5" "$actual_md5"
 rm -f binary.bin
 remove_wt "$wt"
@@ -552,9 +560,9 @@ echo "exec" > "$dir/script.sh"; chmod 755 "$dir/script.sh"
 echo "ro" > "$dir/locked.txt"; chmod 444 "$dir/locked.txt"
 echo "priv" > "$dir/secret.txt"; chmod 600 "$dir/secret.txt"
 wt=$("$TEMPTREE")
-assert_eq "755 preserved" "$(stat -f %Lp "$dir/script.sh")" "$(stat -f %Lp "$wt/script.sh")"
-assert_eq "444 preserved" "$(stat -f %Lp "$dir/locked.txt")" "$(stat -f %Lp "$wt/locked.txt")"
-assert_eq "600 preserved" "$(stat -f %Lp "$dir/secret.txt")" "$(stat -f %Lp "$wt/secret.txt")"
+assert_eq "755 preserved" "$(file_mode "$dir/script.sh")" "$(file_mode "$wt/script.sh")"
+assert_eq "444 preserved" "$(file_mode "$dir/locked.txt")" "$(file_mode "$wt/locked.txt")"
+assert_eq "600 preserved" "$(file_mode "$dir/secret.txt")" "$(file_mode "$wt/secret.txt")"
 chmod 644 "$dir/locked.txt" "$wt/locked.txt" 2>/dev/null
 rm -f "$dir/script.sh" "$dir/locked.txt" "$dir/secret.txt"
 remove_wt "$wt"
