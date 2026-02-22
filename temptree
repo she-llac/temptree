@@ -62,6 +62,9 @@ done
 if [[ -n "$worktree_dir" && "$worktree_dir" != /* ]]; then
   worktree_dir="$(pwd)/$worktree_dir"
 fi
+if [[ -n "$worktree_dir" ]]; then
+  worktree_dir="$(realpath -m "$worktree_dir" 2>/dev/null || echo "$worktree_dir")"
+fi
 
 created=false
 completed=false
@@ -111,7 +114,13 @@ created=true
 
 (
   shopt -s dotglob nullglob
-  GLOBIGNORE=".git"
+  ignore=".git"
+  if [[ "$worktree_dir" == "$repo_root"/* ]]; then
+    wt_top="${worktree_dir#"$repo_root"/}"
+    wt_top="${wt_top%%/*}"
+    ignore="$ignore:$wt_top"
+  fi
+  GLOBIGNORE="$ignore"
   cd "$repo_root"
   files=(*)
   if [[ "${#files[@]}" -eq 0 ]]; then
