@@ -1,11 +1,13 @@
 # shellcheck shell=bash
 temptree() {
+  case "$*" in *-h*|*--help*) command temptree "$@"; return ;; esac
   local dir
   dir="$(command temptree "$@")" || return
   [[ -d "$dir" ]] && builtin cd "$dir"
 }
 
 rmtree() {
+  case "$*" in *-h*|*--help*) command rmtree "$@"; return ;; esac
   local dir has_path=false arg
   for arg in "$@"; do
     case "$arg" in

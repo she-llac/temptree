@@ -26,6 +26,8 @@ die() {
 [[ -z "${TEMPTREE_FOREST_DIR:-}" || "$forest_dir" == /* ]] \
   || die "TEMPTREE_FOREST_DIR must be an absolute path"
 
+case "${1:-}" in -h|--help) usage; exit 0 ;; esac
+
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" \
   || die "not inside a git repository"
 main_worktree="$(git worktree list --porcelain | head -1)"
