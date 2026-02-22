@@ -1,9 +1,15 @@
 function temptree
+  if contains -- -h $argv; or contains -- --help $argv
+    command temptree $argv; return
+  end
   set -l dir (command temptree $argv); or return
   test -d "$dir" && cd $dir
 end
 
 function rmtree
+  if contains -- -h $argv; or contains -- --help $argv
+    command rmtree $argv; return
+  end
   set -l has_path false
   for arg in $argv
     switch $arg
